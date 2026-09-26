@@ -5,9 +5,9 @@ drone, the drums at bar 9, the brass at bar 17, one build bar with the drum gap,
 and the outro fill. Its last hit (bar 36, the "and" of 3) is where we arrive through the I;
 the logo is written in the silence after.
 
-  bars 1–8    drone. The glyph writes itself as a spotlight comes on; we fly through it to a
-              lone dancer in the light. Home, in black & white: a girl alone at the table, the
-              bedroom, the window, hands pressing through a sheet.
+  bars 1–8    drone. The glyph writes itself; we fly through it as the curtain opens on the cast,
+              standing silent. Home, in black & white: a girl alone at the table, a dancer alone in the
+              spotlight, the window, hands pressing through a sheet.
   bars 9–16   the drums: silhouettes walking out, a singer turning away — and her head-turn
               matched by a silhouette's; the crew behind a girl with raised arms, a hair
               flip against the light, hair flying in grey haze, bowed heads, the cast in black.
@@ -82,7 +82,7 @@ def cuts():
     # drone — home
     add(0.20, at(5) - 0.20, "open")
     add(at(5), BAR, "table")
-    add(at(6), BAR, "bedroom")
+    add(at(6), BAR, "spotlight")
     add(at(7), BAR, "window")
     add(at(8), BAR, "hands")
     # drums — the journey
@@ -137,10 +137,11 @@ def footage_clips(path=SHOW, master=True):
 
     clips = {
         # drone
-        "open":       C("1:30:28.00", iron, speed=0.8, zoom=(1.0, 1.6), center=(0.5, 0.5), center_end=(0.53, 0.6),
-                        note="a lone dancer; the spotlight comes on"),
+        "open":       C("0:00:00.10", iron, speed=[(0, 0.1), (3.2, 0.1), (3.9, 0.56), (7.2, 0.56)],
+                        zoom=(1.0, 1.06), note="the curtain opens on the cast, standing silent"),
         "table":      C("1:05:35.90", iron, speed=0.6, zoom=(1.04, 1.12), note="a girl alone at the table"),
-        "bedroom":    C("1:31:03.20", iron, speed=0.7, zoom=(1.06, 1.12), center=(0.5, 0.42), note="the bedroom, three girls"),
+        "spotlight":  C("1:30:29.30", iron, speed=0.8, zoom=(1.45, 1.7), center=(0.5, 0.58), center_end=(0.51, 0.6),
+                        note="a lone dancer in the spotlight"),
         "window":     C("1:20:59.30", iron, speed=0.75, zoom=(1.0, 1.12), center=(0.5, 0.45), note="the projected window of a home"),
         "hands":      C("1:15:04.60", iron, speed=0.7, zoom=(1.1, 1.18), note="hands pressing through a sheet"),
         # drums
@@ -195,7 +196,7 @@ def footage_clips(path=SHOW, master=True):
 # sheets (work/vertical/review_*.jpg). One key holds still; more keys pan smoothly.
 V_FRAMING = {
     "open": [(0, 0.53)],        "table": [(0, 0.59)],
-    "bedroom": [(0, 0.60)],                "window": [(0, 0.545)],
+    "spotlight": [(0, 0.53)],                "window": [(0, 0.545)],
     "hands": [(0, 0.535)],                 "walk": [(0, 0.52), (1, 0.60)],
     "singer": [(0, 0.56), (0.5, 0.60), (1, 0.66)],
     "silhouette": [(0, 0.635)],            "arms": [(0, 0.50), (1, 0.60)],

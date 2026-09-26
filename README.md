@@ -18,7 +18,7 @@ Both are in `brand/` as `.cube` LUTs.
 
 | bars | time | beat |
 |---|---|---|
-| 1–8 | 0–14.8 | drone · the glyph door · home in black & white: silhouettes, the table, the bedroom, the window, hands through a sheet |
+| 1–8 | 0–14.8 | drone · the glyph door opens on the show's first shot, the cast standing silent · home in black & white: the table, a dancer in the spotlight, the window, hands through a sheet |
 | 9–16 | 14.8–29.5 | drums · walking out, the singer turns — a silhouette's head-turn answers — raised arms, a hair flip against the light, grey haze, bowed heads, the cast in black |
 | 17–23 | 29.5–42.5 | brass, Ember · silhouettes with raised arms, a girl pulled across the floor, arms up, the red beanie kids, the kids' crew, silhouettes bent low, amber kids, the glyph on their backs |
 | 24 | 42.5–44.3 | a line of dancers stares down the lens · the frame closes in the drum gap |
