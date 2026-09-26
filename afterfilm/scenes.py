@@ -103,6 +103,7 @@ def add_title_into_i(tl, text, t_title, t_write, t_zoom, t_white, size=0.118, tr
     pivot = ((ib.left() + ib.right()) / 2, (ib.top() + ib.bottom()) / 2)
     cx0, cy0 = (tb.left() + tb.right()) / 2, (tb.top() + tb.bottom()) / 2
     xx = np.arange(w, dtype=np.float32)
+    px = min(w, h) / 1080                              # blur radii follow the frame size
 
     def matrix(z, drift, extra=1.0):
         s = (1 + drift) * extra * (320.0 ** (z ** 2.2))
@@ -147,7 +148,7 @@ def add_title_into_i(tl, text, t_title, t_write, t_zoom, t_white, size=0.118, tr
         if d > 0:
             y = fx.luma(img)[..., None]
             img = img * (1 - d) + np.repeat(y, 3, -1) * d
-            img = cv2.GaussianBlur(img, (0, 0), 1 + 8 * d) * (1 - 0.42 * d)
+            img = cv2.GaussianBlur(img, (0, 0), (1 + 8 * d) * px) * (1 - 0.42 * d)
         if z > 0:
             # the camera travels: the room pushes in behind the letters, with zoom blur
             acc = np.zeros_like(img)
@@ -176,11 +177,11 @@ def add_title_into_i(tl, text, t_title, t_write, t_zoom, t_white, size=0.118, tr
             ratio = scale_at(z_prev) / scale_at(z)
             others = radial_blur(others, ratio) * (1 - z ** 3)
             i_here = radial_blur(i_here, ratio)
-        glow = cv2.GaussianBlur(letters, (0, 0), 7) * 0.3 * (1 - z)
+        glow = cv2.GaussianBlur(letters, (0, 0), 7 * px) * 0.3 * (1 - z)
         out = img + glow[..., None] * PAPER * 0.8
         out = out * (1 - others[..., None]) + PAPER * others[..., None]
         # the I is a lit surface: it glows harder as we reach it
-        halo = cv2.GaussianBlur(i_here, (0, 0), 10 + 40 * z) * (0.25 + 0.9 * z)
+        halo = cv2.GaussianBlur(i_here, (0, 0), (10 + 40 * z) * px) * (0.25 + 0.9 * z)
         out = out + halo[..., None] * PAPER * 0.6
         out = out * (1 - i_here[..., None]) + PAPER * i_here[..., None]
         out = out + (glint * letters)[..., None] * 0.6

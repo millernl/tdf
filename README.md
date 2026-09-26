@@ -61,6 +61,13 @@ Every clip decodes at the master's full 3840×2160, so a 9:16 window at zoom 1 i
 1215×2160 crop, downscaled rather than blown up (the triptych rows decode at 1920×1080).
 The windows (`FRAMING`) are placed on the action for the teaser's own shot lengths.
 
+## Stills (`edits/homecoming_stills.py`)
+
+Twelve 16:9 PNGs rendered straight from the final cut, lossless, at 3840×2160 from the 4K
+master (`--scale 1` for 1920×1080). The scope bars are left off, so each still is the full
+frame. The cinema pass and the title's blur radii scale with the frame, so a 4K still has the
+same halation and bloom as the 1080p film.
+
 ## The 30-second cut (`edits/homecoming.py`)
 
 130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.

@@ -168,12 +168,13 @@ class Look:
         """What a lens and a film stock do to light: halation, anamorphic streaks,
         bloom, a whisper of fringing, gate weave."""
         w, h = self.w, self.h
+        k = min(w, h) / 1080                     # blur radii follow the frame: 4K looks like 1080p
         q = cv2.resize(img, (w // 4, h // 4), interpolation=cv2.INTER_AREA)
         ql = luma(q)
         out = img
         if halation:
             hot = np.clip((ql - 0.62) / 0.38, 0, 1) ** 1.5
-            halo = cv2.GaussianBlur(hot, (0, 0), 2.2) - hot * 0.4
+            halo = cv2.GaussianBlur(hot, (0, 0), 2.2 * k) - hot * 0.4
             halo = cv2.resize(np.clip(halo, 0, 1), (w, h), interpolation=cv2.INTER_LINEAR)
             col = np.array([1.0, 0.34, 0.14], np.float32) * (1 - mono) + np.array([0.9, 0.86, 0.8], np.float32) * mono
             out = out + halo[..., None] * col * 0.26 * halation
@@ -186,14 +187,14 @@ class Look:
             out = out + st[..., None] * col * 0.32 * streaks
         if bloom:
             hot = np.clip(q - 0.66, 0, None) / 0.34
-            glow = cv2.GaussianBlur(hot, (0, 0), 5) * 0.55 + cv2.GaussianBlur(hot, (0, 0), 20) * 0.9
+            glow = cv2.GaussianBlur(hot, (0, 0), 5 * k) * 0.55 + cv2.GaussianBlur(hot, (0, 0), 20 * k) * 0.9
             glow = cv2.resize(glow, (w, h), interpolation=cv2.INTER_LINEAR)
             out = 1 - (1 - np.clip(out, 0, 1)) * (1 - np.clip(glow * 0.3 * bloom, 0, 1))
         # lateral fringing, stronger toward the corners
-        k = 0.0011
-        rch = cv2.warpAffine(out[..., 0], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 + k), (w, h),
+        fr = 0.0011
+        rch = cv2.warpAffine(out[..., 0], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 + fr), (w, h),
                              borderMode=cv2.BORDER_REFLECT)
-        bch = cv2.warpAffine(out[..., 2], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 - k), (w, h),
+        bch = cv2.warpAffine(out[..., 2], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 - fr), (w, h),
                              borderMode=cv2.BORDER_REFLECT)
         out = np.stack([rch, out[..., 1], bch], -1)
         if weave:
