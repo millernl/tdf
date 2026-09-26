@@ -120,8 +120,8 @@ class Look:
         rng = np.random.default_rng(seed)
         self.grain = []
         for _ in range(12):
-            g = rng.standard_normal((int(h / 1.6), int(w / 1.6))).astype(np.float32)
-            g = cv2.GaussianBlur(g, (0, 0), 0.6)
+            g = rng.standard_normal((int(h / 1.25), int(w / 1.25))).astype(np.float32)   # finer, film-like
+            g = cv2.GaussianBlur(g, (0, 0), 0.55)
             g = cv2.resize(g, (w, h), interpolation=cv2.INTER_CUBIC)
             self.grain.append(g / (g.std() + 1e-6))
         self.phase = rng.uniform(0, 6.28, 6)

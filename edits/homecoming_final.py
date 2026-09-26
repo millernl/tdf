@@ -5,8 +5,8 @@ drone, the drums at bar 9, the brass at bar 17, one build bar with the drum gap,
 and the outro fill. Its last hit (bar 36, the "and" of 3) is where we arrive through the I;
 the logo is written in the silence after.
 
-  bars 1–8    drone. The glyph writes itself with the show inside; we fly through it.
-              Home, in black & white: the silhouettes, a girl alone at the table, the
+  bars 1–8    drone. The glyph writes itself as a spotlight comes on; we fly through it to a
+              lone dancer in the light. Home, in black & white: a girl alone at the table, the
               bedroom, the window, hands pressing through a sheet.
   bars 9–16   the drums: silhouettes walking out, a singer turning away — and her head-turn
               matched by a silhouette's; the crew behind a girl with raised arms, a hair
@@ -34,7 +34,9 @@ from afterfilm.score import BAR, BEAT, at  # noqa: E402
 from afterfilm.timeline import Clip, Shot, Timeline, VideoSource  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-SHOW = ROOT / "footage" / "HOMECOMING.2026.PVT.mp4"
+SHOW = ROOT / "footage" / "HOMECOMING.2026.PVT.mp4"          # 720p working copy: timing reference
+MASTER = ROOT / "footage" / "Show_Volledig-v1-1790451361156.mp4"   # 4K master, only the moments we use
+MASTER_MAP = ROOT / "edits" / "data" / "hq_map.json"          # working-copy time → master time (afterfilm.conform)
 MUSIC = ROOT / "music" / "Iron_Homecoming_Edit.mp3"
 MUSIC_T0 = 0.020          # first downbeat in the file (measured); trimmed so bar n starts at at(n)
 MUSIC_GAIN_DB = -1.5      # the mix peaks at +0.3 dBFS; a static trim keeps it clean, dynamics untouched
@@ -117,8 +119,15 @@ def cuts():
     return C
 
 
-def footage_clips(path=SHOW):
-    src = VideoSource(str(path))
+def footage_clips(path=SHOW, master=True):
+    """Clips are addressed in working-copy time; with the 4K master present they read from it
+    (clean downscale, no rescue filtering), otherwise from the 720p copy."""
+    if master and MASTER.exists() and MASTER_MAP.exists():
+        import json
+        from afterfilm.conform import MappedSource
+        src = MappedSource(MASTER, json.load(open(MASTER_MAP)))
+    else:
+        src = VideoSource(str(path))
     # black & white, or the red/orange of the red solo — nothing else. 'color' stays only on
     # the three naturally red shots the ember palette was measured from.
     iron, color, ember = {"look": "iron"}, {"look": "color"}, {"look": "ember"}
@@ -128,7 +137,8 @@ def footage_clips(path=SHOW):
 
     clips = {
         # drone
-        "open":       C("0:00:07.30", iron, speed=0.4, zoom=(1.0, 1.08), note="silhouettes walk out of the haze"),
+        "open":       C("1:30:28.00", iron, speed=0.8, zoom=(1.0, 1.6), center=(0.5, 0.5), center_end=(0.53, 0.6),
+                        note="a lone dancer; the spotlight comes on"),
         "table":      C("1:05:35.90", iron, speed=0.6, zoom=(1.04, 1.12), note="a girl alone at the table"),
         "bedroom":    C("1:31:03.20", iron, speed=0.7, zoom=(1.06, 1.12), center=(0.5, 0.42), note="the bedroom, three girls"),
         "window":     C("1:20:59.30", iron, speed=0.75, zoom=(1.0, 1.12), center=(0.5, 0.45), note="the projected window of a home"),
@@ -184,7 +194,7 @@ def footage_clips(path=SHOW):
 # Suggested by afterfilm.vertical (motion + detail), then corrected by eye on the review
 # sheets (work/vertical/review_*.jpg). One key holds still; more keys pan smoothly.
 V_FRAMING = {
-    "open": [(0, 0.64), (1, 0.72)],        "table": [(0, 0.59)],
+    "open": [(0, 0.53)],        "table": [(0, 0.59)],
     "bedroom": [(0, 0.60)],                "window": [(0, 0.545)],
     "hands": [(0, 0.535)],                 "walk": [(0, 0.52), (1, 0.60)],
     "singer": [(0, 0.56), (0.5, 0.60), (1, 0.66)],
@@ -253,7 +263,8 @@ def build(clips, w=1920, h=1080, fps=25):
             return {"mono": 1.0, "streaks": 0.9, "halation": 0.7}
         return {"mono": 0.0, "streaks": 0.0, "halation": 0.0, "bloom": 0.0, "weave": 0.0}
     tl.cinema_at = cinema_at
-    tl.grain_at = lambda t: 1.3 if t < T_COLOR else (1.0 if t < T_OUTRO else (1.2 if t < T_WHITE else 0.45))
+    # clean 4K master: grain is texture now, not a disguise (the 720p needed 1.3 / 1.0 / 1.2)
+    tl.grain_at = lambda t: 0.6 if t < T_COLOR else (0.42 if t < T_OUTRO else (0.55 if t < T_WHITE else 0.3))
     tl.vignette_at = lambda t: 1.0 - 0.9 * fx.smoothstep(T_ZOOM + 0.4, T_WHITE, t)
 
     scenes.add_glyph_door(tl, 0.30, 2.45, 2.55, T_LAND)

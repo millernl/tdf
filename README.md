@@ -29,6 +29,13 @@ Both are in `brand/` as `.cube` LUTs.
 `python edits/homecoming_final.py --verify` scans every clip's source range frame by
 frame for camera cuts or stray frames from another angle.
 
+**4K master** — the working copy is 720p; the 4K original was pulled only where the cut
+needs it (`handover/HOMECOMING_segments.csv`, cut losslessly in LosslessCut and merged into
+one file). `python -m afterfilm.conform work/hq_segments.json <720p> <4K segments>` finds
+each segment in it by matching frames and writes `edits/data/hq_map.json`; clips are still
+addressed in 720p time and read from the 4K file, downscaled with no rescue filtering. The
+grain is back to a light texture.
+
 **9:16** — `python edits/homecoming_final.py --vertical` renders 1080×1920. Clips decode at
 the source's full 1280×720 and each shot places its vertical window per `V_FRAMING`
 (suggested by `afterfilm/vertical.py` from motion and detail, corrected by eye on its review

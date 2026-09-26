@@ -1,0 +1,420 @@
+[
+ {
+  "seg": 1,
+  "src_a": 0.0,
+  "src_b": 30.0,
+  "delta": -0.02,
+  "err": 0.0008,
+  "keys": [
+   "show-opening",
+   "open"
+  ]
+ },
+ {
+  "seg": 2,
+  "src_a": 1053.2,
+  "src_b": 1059.123,
+  "delta": -1022.18,
+  "err": 0.0006,
+  "keys": [
+   "kidscrew"
+  ]
+ },
+ {
+  "seg": 3,
+  "src_a": 2407.0,
+  "src_b": 2413.662,
+  "delta": -2369.78,
+  "err": 0.001,
+  "keys": [
+   "beanies"
+  ]
+ },
+ {
+  "seg": 4,
+  "src_a": 2527.08,
+  "src_b": 2533.003,
+  "delta": -2482.46,
+  "err": 0.0007,
+  "keys": [
+   "pulled"
+  ]
+ },
+ {
+  "seg": 5,
+  "src_a": 2582.9,
+  "src_b": 2589.377,
+  "delta": -2531.24,
+  "err": 0.0004,
+  "keys": [
+   "tri"
+  ]
+ },
+ {
+  "seg": 6,
+  "src_a": 2627.2,
+  "src_b": 2633.123,
+  "delta": -2568.58,
+  "err": 0.0006,
+  "keys": [
+   "armsup"
+  ],
+  "nudged": "+1 frame: master cut lands on the in-point"
+ },
+ {
+  "seg": 7,
+  "src_a": 3933.4,
+  "src_b": 3939.508,
+  "delta": -3868.42,
+  "err": 0.0011,
+  "keys": [
+   "table"
+  ]
+ },
+ {
+  "seg": 8,
+  "src_a": 3993.3,
+  "src_b": 4012.0,
+  "delta": -3921.48,
+  "err": 0.0008,
+  "keys": [
+   "stare",
+   "opener: group under the spot"
+  ]
+ },
+ {
+  "seg": 9,
+  "src_a": 4107.4,
+  "src_b": 4113.877,
+  "delta": -4016.34,
+  "err": 0.0011,
+  "keys": [
+   "blonde"
+  ]
+ },
+ {
+  "seg": 10,
+  "src_a": 4151.8,
+  "src_b": 4157.631,
+  "delta": -4053.74,
+  "err": 0.0007,
+  "keys": [
+   "hairwhip"
+  ]
+ },
+ {
+  "seg": 11,
+  "src_a": 4164.75,
+  "src_b": 4170.581,
+  "delta": -4060.09,
+  "err": 0.0086,
+  "keys": [
+   "redlight"
+  ],
+  "nudged": "+1 frame: master cut lands on the in-point"
+ },
+ {
+  "seg": 12,
+  "src_a": 4188.4,
+  "src_b": 4194.877,
+  "delta": -4077.14,
+  "err": 0.0003,
+  "keys": [
+   "explode"
+  ],
+  "nudged": "+1 frame: master cut lands on the in-point"
+ },
+ {
+  "seg": 13,
+  "src_a": 4211.8,
+  "src_b": 4218.277,
+  "delta": -4093.26,
+  "err": 0.0003,
+  "keys": [
+   "tri"
+  ]
+ },
+ {
+  "seg": 14,
+  "src_a": 4436.8,
+  "src_b": 4443.277,
+  "delta": -4311.18,
+  "err": 0.0008,
+  "keys": [
+   "blackcast"
+  ]
+ },
+ {
+  "seg": 15,
+  "src_a": 4502.1,
+  "src_b": 4508.392,
+  "delta": -4369.52,
+  "err": 0.0003,
+  "keys": [
+   "hands"
+  ]
+ },
+ {
+  "seg": 16,
+  "src_a": 4643.0,
+  "src_b": 4648.831,
+  "delta": -4503.14,
+  "err": 0.0012,
+  "keys": [
+   "redwalk"
+  ]
+ },
+ {
+  "seg": 17,
+  "src_a": 4856.8,
+  "src_b": 4863.185,
+  "delta": -4710.1,
+  "err": 0.0004,
+  "keys": [
+   "window"
+  ]
+ },
+ {
+  "seg": 18,
+  "src_a": 4967.8,
+  "src_b": 4974.092,
+  "delta": -4813.82,
+  "err": 0.0005,
+  "keys": [
+   "bowed"
+  ]
+ },
+ {
+  "seg": 19,
+  "src_a": 4984.8,
+  "src_b": 4991.277,
+  "delta": -4824.22,
+  "err": 0.0008,
+  "keys": [
+   "silhouette"
+  ]
+ },
+ {
+  "seg": 20,
+  "src_a": 5036.8,
+  "src_b": 5050.457,
+  "delta": -4868.98,
+  "err": 0.0004,
+  "keys": [
+   "walk",
+   "arms"
+  ]
+ },
+ {
+  "seg": 21,
+  "src_a": 5135.0,
+  "src_b": 5141.477,
+  "delta": -4953.06,
+  "err": 0.0013,
+  "keys": [
+   "bent"
+  ]
+ },
+ {
+  "seg": 22,
+  "src_a": 5321.5,
+  "src_b": 5327.977,
+  "delta": -5132.8,
+  "err": 0.001,
+  "keys": [
+   "amberkids"
+  ]
+ },
+ {
+  "seg": 23,
+  "src_a": 5427.0,
+  "src_b": 5438.0,
+  "delta": -5231.74,
+  "err": 0.0003,
+  "keys": [
+   "opener: lone dancer in the spot cone"
+  ]
+ },
+ {
+  "seg": 24,
+  "src_a": 5460.7,
+  "src_b": 5466.992,
+  "delta": -5253.92,
+  "err": 0.0003,
+  "keys": [
+   "bedroom"
+  ]
+ },
+ {
+  "seg": 25,
+  "src_a": 5660.7,
+  "src_b": 5666.623,
+  "delta": -5447.44,
+  "err": 0.0005,
+  "keys": [
+   "amber"
+  ]
+ },
+ {
+  "seg": 26,
+  "src_a": 5976.0,
+  "src_b": 5984.0,
+  "delta": -5756.38,
+  "err": 0.0002,
+  "keys": [
+   "opener: white beams"
+  ]
+ },
+ {
+  "seg": 27,
+  "src_a": 6456.5,
+  "src_b": 6462.977,
+  "delta": -6227.84,
+  "err": 0.0005,
+  "keys": [
+   "singer"
+  ]
+ },
+ {
+  "seg": 28,
+  "src_a": 6716.0,
+  "src_b": 6740.0,
+  "delta": -6479.86,
+  "err": 0.0009,
+  "keys": [
+   "opener: yellow beam in the dark"
+  ]
+ },
+ {
+  "seg": 29,
+  "src_a": 6821.1,
+  "src_b": 6826.838,
+  "delta": -6560.0,
+  "err": 0.0003,
+  "keys": [
+   "tower"
+  ]
+ },
+ {
+  "seg": 30,
+  "src_a": 6962.9,
+  "src_b": 6968.823,
+  "delta": -6695.16,
+  "err": 0.0004,
+  "keys": [
+   "ambercrew"
+  ]
+ },
+ {
+  "seg": 31,
+  "src_a": 7599.9,
+  "src_b": 7606.377,
+  "delta": -7325.6,
+  "err": 0.001,
+  "keys": [
+   "glyphbacks"
+  ]
+ },
+ {
+  "seg": 32,
+  "src_a": 7622.5,
+  "src_b": 7628.423,
+  "delta": -7341.12,
+  "err": 0.0017,
+  "keys": [
+   "d98crew"
+  ]
+ },
+ {
+  "seg": 33,
+  "src_a": 7639.3,
+  "src_b": 7645.223,
+  "delta": -7351.36,
+  "err": 0.0009,
+  "keys": [
+   "lunge"
+  ]
+ },
+ {
+  "seg": 34,
+  "src_a": 7690.15,
+  "src_b": 7695.925,
+  "delta": -7395.49,
+  "err": 0.0011,
+  "keys": [
+   "tri"
+  ],
+  "nudged": "+1 frame: master cut lands on the in-point"
+ },
+ {
+  "seg": 35,
+  "src_a": 7784.05,
+  "src_b": 7790.508,
+  "delta": -7483.35,
+  "err": 0.0162,
+  "keys": [
+   "trails"
+  ]
+ },
+ {
+  "seg": 36,
+  "src_a": 7797.2,
+  "src_b": 7803.668,
+  "delta": -7489.62,
+  "err": 0.0155,
+  "keys": [
+   "freeze"
+  ]
+ },
+ {
+  "seg": 37,
+  "src_a": 8065.55,
+  "src_b": 8082.0,
+  "delta": -7750.73,
+  "err": 0.0007,
+  "keys": [
+   "entwined",
+   "opener: spot, group"
+  ]
+ },
+ {
+  "seg": 38,
+  "src_a": 8105.94,
+  "src_b": 8112.417,
+  "delta": -7774.52,
+  "err": 0.0005,
+  "keys": [
+   "greyhair"
+  ]
+ },
+ {
+  "seg": 39,
+  "src_a": 8204.5,
+  "src_b": 8210.977,
+  "delta": -7865.8,
+  "err": 0.0006,
+  "keys": [
+   "silhouettes"
+  ]
+ },
+ {
+  "seg": 40,
+  "src_a": 8277.9,
+  "src_b": 8284.746,
+  "delta": -7932.56,
+  "err": 0.0003,
+  "keys": [
+   "drop"
+  ]
+ },
+ {
+  "seg": 41,
+  "src_a": 8760.5,
+  "src_b": 8767.487,
+  "delta": -8407.88,
+  "err": 0.0003,
+  "keys": [
+   "hug"
+  ]
+ }
+]
