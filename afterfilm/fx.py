@@ -70,7 +70,26 @@ PRESETS = {
     "color": dict(mono=0.0, sat=0.92, remap=1.0, contrast=0.30, expo=0.0, split=1.0, warmth=0.1),
     # the heart: clean, faded colour — whites stay white, no sepia wash
     "silver": dict(mono=0.0, sat=0.55, remap=1.0, contrast=0.26, expo=0.06, split=0.55, warmth=0.0),
+    # red/orange: the shot's black & white tones rendered through the red solo's own palette
+    "ember": dict(mono=1.0, sat=0.0, remap=0.0, contrast=0.42, expo=0.0, split=0.0, warmth=0.0, ember=1.0),
 }
+
+# Luma → colour of the red-solo shots as the 'color' look renders them (measured from
+# 2:09:46–2:10:35 and 1:09:27), extended past their brightest pixels to a warm white.
+_EMBER_L = np.array([0.0, 0.025, 0.075, 0.125, 0.175, 0.225, 0.275, 0.325, 0.375, 0.425,
+                     0.475, 0.525, 0.575, 0.625, 0.675, 0.8, 1.0], np.float32)
+_EMBER_RGB = np.array([[4, 6, 5], [11, 11, 10], [24, 17, 10], [57, 27, 7], [86, 34, 6], [124, 42, 7],
+                       [155, 51, 9], [179, 61, 12], [199, 73, 15], [213, 86, 17], [224, 103, 20],
+                       [226, 117, 22], [228, 134, 20], [230, 149, 17], [231, 162, 40], [240, 190, 110],
+                       [248, 225, 185]], np.float32) / 255.0
+EMBER_SCALE = 0.56     # a white in the black & white grade lands on the solo's bright orange
+EMBER_GAMMA = 1.2      # keeps the mids in the deep reds, as on the red stage
+
+
+def ember(v):
+    """Black & white tone (0..1) → the red/orange palette."""
+    L = np.clip(v, 0, 1) ** EMBER_GAMMA * EMBER_SCALE
+    return np.stack([np.interp(L, _EMBER_L, _EMBER_RGB[:, c]) for c in range(3)], -1).astype(np.float32)
 BW_MIX = np.array([0.50, 0.40, 0.10], np.float32)        # orange-filter panchromatic: skin glows, violet light sinks
 
 # hue remap: stage purples/blues → desaturated teal, reds/oranges/yellows → gold, greens → '98 Green'
@@ -132,6 +151,8 @@ class Look:
         x = filmic(x)
         c = p["contrast"]
         x = x + c * (x * x * (3 - 2 * x) - x)
+        if p.get("ember"):
+            return ember(luma(x))
         y = luma(x)[..., None]
         if p["split"]:
             sh = (1 - smoothstep(0.05, 0.55, y)) * smoothstep(0.0, 0.18, y)

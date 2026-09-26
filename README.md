@@ -11,14 +11,19 @@ not in git): source bars 1–23 | 32 | 33–40 | 73–76 at 130 BPM. The mix is 
 (first downbeat trimmed onto the grid, a static −1.5 dB so it doesn't clip). We arrive
 through the I on its last hit; the logo is written in silence. 69 s.
 
+Two looks only: **Iron** (black & white) and **Ember** (red/orange). Ember renders a shot's
+black & white tones through the palette measured from the red solo shots, so every colour
+shot matches them; the three naturally red shots it was measured from keep the natural grade.
+Both are in `brand/` as `.cube` LUTs.
+
 | bars | time | beat |
 |---|---|---|
 | 1–8 | 0–14.8 | drone · the glyph door · home in black & white: silhouettes, the table, the bedroom, the window, hands through a sheet |
 | 9–16 | 14.8–29.5 | drums · walking out, the singer turns — a silhouette's head-turn answers — raised arms, a hair flip against the light, grey haze, bowed heads, the cast in black |
-| 17–23 | 29.5–42.5 | brass, colour in scope · a sheet whipped through red, a girl pulled across the floor, arms up, the red beanie kids, the kids' crew, magenta, amber kids, the glyph on their backs |
+| 17–23 | 29.5–42.5 | brass, Ember · silhouettes with raised arms, a girl pulled across the floor, arms up, the red beanie kids, the kids' crew, silhouettes bent low, amber kids, the glyph on their backs |
 | 24 | 42.5–44.3 | a line of dancers stares down the lens · the frame closes in the drum gap |
-| 25–32 | 44.3–59.1 | the drop · lights snap to beams, the cast explodes, jerseys, red light, light trails, a triptych of hair in three colours, lasers, amber, the D98 shirts · the handstand freezes |
-| 33–36 | 59.1–65.8 | one embrace · HOMECOMING over it · through the I on the last hit |
+| 25–32 | 44.3–59.1 | the drop · beams, the cast explodes, hair whipped through haze, the light snaps to red, light trails, a triptych of hair, silhouettes over the audience, the D98 shirts · the handstand freezes |
+| 33–36 | 59.1–65.8 | black & white · two dancers entwined, a tower of bodies, the whole cast in one embrace · HOMECOMING · through the I on the last hit |
 | — | 65.8–69 | silence · the glyph in '98 Green', the wordmark in ink |
 
 `python edits/homecoming_final.py --verify` scans every clip's source range frame by
@@ -37,8 +42,8 @@ frame for camera cuts or stray frames from another angle.
 | 15–17 | 25.8–30.0 | HOMECOMING written by light over the cast → fly into the *I* → it turns '98 Green' → the logo writes itself |
 
 Looks (`afterfilm/fx.py` → `PRESETS`, also exported as `.cube` in `brand/`):
-**Iron** (panchromatic B&W), **GreenGold** (stage purples → muted teal, reds/oranges → gold),
-**Silver** (clean, faded colour for the heart — no sepia). On top: filmic tone curve, halation, anamorphic streaks on the stage
+**Iron** (panchromatic B&W) and **Ember** (red/orange); the earlier cuts also used
+**color** (stage purples → muted teal, reds/oranges → gold) and **silver**. On top: filmic tone curve, halation, anamorphic streaks on the stage
 lights, bloom, lens fringing, gate weave, grain. The low-bitrate export is deblocked,
 denoised and CAS-sharpened on decode (`media.RESCUE_PRE/POST`).
 

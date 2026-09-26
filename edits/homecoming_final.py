@@ -45,9 +45,10 @@ T_DRUMS = at(9)
 T_COLOR = at(17)          # the brass — colour arrives
 T_GAP = at(24, 2)         # the drums hold their breath
 T_DROP = at(25)
-T_OUTRO = at(33)
-T_TITLE = at(34, 2)
-T_WRITE = at(35)
+T_OUTRO = at(33)          # black & white again: two dancers, a tower of bodies, everyone
+T_HUG = at(34, 2)
+T_TITLE = at(35)
+T_WRITE = at(35, 1)
 T_ZOOM = at(36)
 T_WHITE = at(36, 2.5)     # the arrangement's last hit
 T_MARK = T_WHITE + 1.15
@@ -92,40 +93,44 @@ def cuts():
     add(at(15), BAR, "bowed")
     add(at(16), BAR, "blackcast")
     # brass — colour
-    add(at(17), BAR, "sheet", flash=0.25)
+    add(at(17), BAR, "silhouettes", flash=0.25)
     pair(18, "pulled", "armsup")
     add(at(19), BAR, "beanies")
     pair(20, "kidscrew", "ambercrew")
-    add(at(21), BAR, "magenta")
+    add(at(21), BAR, "bent")
     add(at(22), BAR, "amberkids")
     add(at(23), BAR, "glyphbacks")
     add(at(24), BAR, "stare")                        # the frame closes on this
     # drop
     add(T_DROP, BAR, "drop", flash=0.45, shake=1.0)
     add(at(26), BAR, "explode", shake=0.6)
-    pair(27, "jerseys", "redlight")
+    pair(27, "hairwhip", "redlight")
     add(at(28), BAR, "trails")
     add(at(29), BAR, "tri", triptych=True)
-    pair(30, "lasers", "amber")
+    pair(30, "redwalk", "amber")
     pair(31, "d98crew", "lunge")
     add(at(32), BAR, "freeze", freeze_at=g(2))
-    # outro — one embrace, the title, the I
-    add(T_OUTRO, T_WHITE - T_OUTRO + 0.05, "hug", trans=("dip", 0.7))
+    # outro — two dancers, a tower of bodies, the whole cast in one embrace; the title; the I
+    add(T_OUTRO, BAR, "entwined", trans=("dip", 0.6))
+    add(at(34), g(2), "tower")
+    add(T_HUG, T_WHITE - T_HUG + 0.05, "hug")
     return C
 
 
 def footage_clips(path=SHOW):
     src = VideoSource(str(path))
-    iron, color, silver = {"look": "iron"}, {"look": "color"}, {"look": "silver"}
+    # black & white, or the red/orange of the red solo — nothing else. 'color' stays only on
+    # the three naturally red shots the ember palette was measured from.
+    iron, color, ember = {"look": "iron"}, {"look": "color"}, {"look": "ember"}
 
-    def C(t, look=color, **k):
+    def C(t, look=ember, **k):
         return Clip(src, tc(t), grade=dict(look), **k)
 
     clips = {
         # drone
         "open":       C("0:00:07.30", iron, speed=0.4, zoom=(1.0, 1.08), note="silhouettes walk out of the haze"),
         "table":      C("1:05:35.90", iron, speed=0.6, zoom=(1.04, 1.12), note="a girl alone at the table"),
-        "bedroom":    C("1:31:03.20", iron, speed=0.7, zoom=(1.38, 1.46), center=(0.5, 0.56), note="the bedroom, three girls"),
+        "bedroom":    C("1:31:03.20", iron, speed=0.7, zoom=(1.06, 1.12), center=(0.5, 0.42), note="the bedroom, three girls"),
         "window":     C("1:20:59.30", iron, speed=0.75, zoom=(1.0, 1.12), center=(0.5, 0.45), note="the projected window of a home"),
         "hands":      C("1:15:04.60", iron, speed=0.7, zoom=(1.1, 1.18), note="hands pressing through a sheet"),
         # drums
@@ -138,32 +143,34 @@ def footage_clips(path=SHOW):
         "bowed":      C("1:22:50.30", iron, speed=0.7, zoom=(1.0, 1.05), note="a row of bowed heads"),
         "blackcast":  C("1:13:59.30", iron, speed=0.8, note="the cast in black, hair flying"),
         # brass
-        "sheet":      C("1:16:00.70", speed=0.8, zoom=(1.0, 1.05), note="a sheet whipped through red"),
+        "silhouettes": C("2:16:47.00", speed=0.8, zoom=(1.14, 1.18), center=(0.42, 0.5), note="silhouettes, arms up, against orange"),
         "pulled":     C("0:42:09.58", note="a girl pulled across the floor"),
         "armsup":     C("0:43:49.70", note="arms up, white shirts"),
         "beanies":    C("0:40:09.50", speed=0.9, note="the red beanie kids"),
         "kidscrew":   C("0:17:35.70", note="the kids' crew"),
         "ambercrew":  C("1:56:05.40", note="amber, the crew in white"),
-        "magenta":    C("1:33:16.50", speed=0.8, zoom=(1.0, 1.04), note="a solo in magenta"),
+        "bent":       C("1:25:37.50", {**ember, "exposure": 0.7}, speed=0.8, zoom=(1.0, 1.05), note="silhouettes bent low, red flare"),
         "amberkids":  C("1:28:44.00", speed=0.8, zoom=(1.0, 1.04), note="amber, kids close"),
-        "glyphbacks": C("2:06:42.40", {**color, "exposure": 0.8}, speed=0.8, zoom=(1.0, 1.05), note="two girls walk off, the glyph on their backs"),
+        "glyphbacks": C("2:06:42.40", {**ember, "exposure": 0.8}, speed=0.8, zoom=(1.0, 1.05), note="two girls walk off, the glyph on their backs"),
         "stare":      C("1:06:35.80", speed=0.7, zoom=(1.0, 1.06), note="a line of dancers stares down the lens"),
         # drop
-        "drop":       C("2:18:00.40", {**color, "exposure": -0.25}, note="the lights snap to beams"),
+        "drop":       C("2:18:00.40", {**ember, "exposure": -0.25}, note="the lights snap to beams"),
         "explode":    C("1:09:50.90", speed=0.8, note="the cast explodes out of the haze"),
-        "jerseys":    C("0:36:48.42", note="close · the crew in jerseys, green light"),
+        "hairwhip":   C("1:09:14.30", speed=0.9, note="hair whipped through amber haze"),
         "redlight":   C("1:09:27.25", {**color, "exposure": 0.6}, speed=0.9, note="the light snaps to red over the cast"),
         "trails":     C("2:09:46.90", {**color, "exposure": 1.0}, speed=0.6, echo=1.0, note="powermove in light trails"),
-        "lasers":     C("0:37:34.90", note="lasers over the crew"),
+        "redwalk":    C("1:17:25.50", speed=0.9, note="silhouettes on red, over the audience"),
         "amber":      C("1:34:23.20", note="amber close · dancers whip past"),
         "d98crew":    C("2:07:05.00", note="the crew turns, D98 on their shirts"),
         "lunge":      C("2:07:21.80", note="a lunge into the lens"),
         "freeze":     C("2:09:59.70", {**color, "exposure": 0.7}, speed=0.6, note="red solo · handstand → freeze"),
         # outro
-        "hug":        C("2:26:03.00", silver, speed=0.5, zoom=(1.02, 1.1), note="the whole cast, one embrace"),
+        "entwined":   C("2:14:28.05", iron, speed=0.8, zoom=(1.0, 1.04), note="two dancers entwined under the spot"),
+        "tower":      C("1:53:43.60", iron, speed=0.8, zoom=(1.18, 1.2), center=(0.44, 0.5), note="a tower of bodies"),
+        "hug":        C("2:26:03.00", iron, speed=0.5, zoom=(1.02, 1.08), note="the whole cast, one embrace"),
     }
     clips["tri"] = [
-        C("2:08:12.65", {**color, "exposure": 0.6}, speed=0.42, zoom=(1.05, 1.08), center=(0.34, 0.5),
+        C("2:08:12.65", {**ember, "exposure": 0.6}, speed=0.42, zoom=(1.05, 1.08), center=(0.34, 0.5),
           center_end=(0.3, 0.58), note="hair whipped in purple"),
         C("1:10:14.30", speed=0.8, zoom=(1.0, 1.02), center=(0.5, 0.5), note="a hair flip in white haze"),
         C("0:43:05.40", speed=0.8, zoom=(1.05, 1.08), center=(0.45, 0.5), center_end=(0.5, 0.5),
@@ -196,11 +203,13 @@ def build(clips, w=1920, h=1080, fps=25):
     def cinema_at(t):
         if t < T_COLOR:
             return {"mono": 1.0, "streaks": 0.9, "halation": 0.7}
-        if t < T_WHITE:
+        if t < T_OUTRO:
             return {"mono": 0.0, "streaks": 1.05, "halation": 1.05, "bloom": 1.05}
+        if t < T_WHITE:
+            return {"mono": 1.0, "streaks": 0.9, "halation": 0.7}
         return {"mono": 0.0, "streaks": 0.0, "halation": 0.0, "bloom": 0.0, "weave": 0.0}
     tl.cinema_at = cinema_at
-    tl.grain_at = lambda t: 1.3 if t < T_COLOR else (1.0 if t < T_WHITE else 0.45)
+    tl.grain_at = lambda t: 1.3 if t < T_COLOR else (1.0 if t < T_OUTRO else (1.2 if t < T_WHITE else 0.45))
     tl.vignette_at = lambda t: 1.0 - 0.9 * fx.smoothstep(T_ZOOM + 0.4, T_WHITE, t)
 
     scenes.add_glyph_door(tl, 0.30, 2.45, 2.55, T_LAND)
