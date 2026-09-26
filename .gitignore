@@ -1,0 +1,11 @@
+# Footage and renders never go in git (the repo is public) — footage arrives via a draft release.
+footage/
+work/
+renders/
+*.mp4
+*.mov
+*.mxf
+*.mts
+*.m2ts
+*.wav
+__pycache__/
