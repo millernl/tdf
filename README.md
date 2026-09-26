@@ -6,20 +6,25 @@ cut from the live registration and dressed in the District98 identity
 
 ## The one-minute cut (`edits/homecoming60.py`)
 
-Cut to the Iron mix, conformed on its bar grid to 31 bars (source bars 5–8 | 9–12 | 17–20 |
-29–32 | 33–40 | 41–44 | 45–46 | 76, splices on downbeats). The drums play a 3-3-2 gallop
-(1 · 2& · 4) and the fast sections cut on it. The music stops dead at 57.2 s; the logo is
-written in the silence.
+Cut to the Iron mix, conformed on its bar grid to 32 bars (source bars 5–12 | 17–20 |
+31–36 | 39–48 | 73–76, splices on downbeats) so the track's whole outro fill plays out
+before its hard stop at 59.1 s; the logo is written in the silence after (62.3 s total).
+The drums play a 3-3-2 gallop (1 · 2& · 4) and the fast sections cut on it.
 
 | bars | time | beat |
 |---|---|---|
-| 1–4 | 0–7.4 | drone · the glyph writes itself with the show inside, we fly through · a girl alone at a table |
-| 5–12 | 7.4–22.2 | the drums · black & white journey: walking silhouettes, the spotlight ring, the projected window of a home, the audience's view |
-| 13–16 | 22.2–29.5 | the build rides the gallop · in the drum gap the frame closes to black |
-| 17–24 | 29.5–44.3 | the drop bursts open in colour · jerseys, kids, lasers, triptych, speed ramp · a handstand freezes as the drums fall away |
-| 25–28 | 44.3–51.7 | through black into the heart: the group hug, faces, the District98 hoodies |
-| 29–31 | 51.7–57.2 | everything returns: a leap in front of the cast · HOMECOMING written over them · into the I, onto a white page |
-| — | 57.2–60 | silence · the glyph written in '98 Green', the wordmark in ink |
+| 1–4 | 0–7.4 | drone · the glyph writes itself with the show inside, we fly through and stay with the silhouettes |
+| 5–8 | 7.4–14.8 | the drums · home, in black & white: a girl alone at the table, the bedroom, the window, hands pressing through a sheet |
+| 9–12 | 14.8–22.2 | the journey: walking silhouettes, a singer turning away, the spotlight ring, bodies under the sheet |
+| 13–14 | 22.2–25.8 | the build on the gallop · a stutter · in the drum gap the frame closes to black |
+| 15–20 | 25.8–36.9 | the drop bursts open in colour · jerseys, kids, a triptych of three solos, a speed ramp · a handstand freezes |
+| 21–24 | 36.9–44.3 | the heart: the whole-cast hug, faces, two voices, the District98 hoodies |
+| 25–28 | 44.3–51.7 | the return: the cast explodes out of the haze, a powermove in light trails, the audience |
+| 29–32 | 51.7–59.1 | the outro fill: the cast clapping (finale strobe removed) · HOMECOMING · into the I, onto a white page |
+| — | 59.1–62.3 | silence · the glyph in '98 Green', the wordmark in ink, a low breath of sound |
+
+`python edits/homecoming60.py --verify` scans every clip's source range frame by frame for
+camera cuts or stray frames from another angle.
 
 ## The 30-second cut (`edits/homecoming.py`)
 

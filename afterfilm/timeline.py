@@ -31,16 +31,17 @@ class FrameBuffer:
 
 
 class VideoSource:
-    def __init__(self, path, rescue=True):
+    def __init__(self, path, rescue=True, extra_pre=None):
         self.path = path
         self.info = media.probe(path)
         self.rescue = rescue
+        self.extra_pre = extra_pre           # e.g. "tmedian=radius=2" to strip strobe flashes
 
     def read(self, t0, t1, fps, size):
         native = self.info["fps"] * (2 if self.info["interlaced"] else 1)
         dfps = min(fps, native)
         frames = media.read_frames(self.path, t0, (t1 - t0) + 2 / dfps, dfps, size,
-                                   pre=media.RESCUE_PRE if self.rescue else None,
+                                   pre=",".join(x for x in (self.extra_pre, media.RESCUE_PRE if self.rescue else None) if x) or None,
                                    post=media.RESCUE_POST if self.rescue else None)
         return FrameBuffer(frames, t0, dfps)
 
@@ -55,6 +56,7 @@ class Clip:
     center: tuple = (0.5, 0.5)           # framing centre, normalised
     center_end: Optional[tuple] = None
     grade: dict = field(default_factory=dict)
+    echo: float = 0.0                    # light trails: strength of trailing frames (0 = off)
     note: str = ""                       # what the shot is (for the EDL printout)
     buf: object = None
 
@@ -80,6 +82,10 @@ class Clip:
     def frame(self, lt, dur, look, freeze_at=None, **grade_over):
         st = self.src_time(min(lt, freeze_at) if freeze_at is not None else lt)
         img = self.buf.frame(st)
+        if self.echo:
+            # chronophotography: earlier instants of the move linger as light (lighten blend)
+            for k in range(1, 6):
+                img = np.maximum(img, self.buf.frame(st - k * 0.07) * (self.echo * 0.72 ** k))
         p = float(np.clip(lt / max(dur, 1e-6), 0, 1.2))
         z = self.zoom[0] + (self.zoom[1] - self.zoom[0]) * p
         ce = self.center_end or self.center

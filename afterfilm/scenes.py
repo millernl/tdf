@@ -50,24 +50,31 @@ def add_glyph_door(tl, t_draw0, t_draw1, t_zoom0, t_land, height=0.26):
 
 
 # ── triptych ──
-def triptych(shot, lt, tl, stagger=0.23):
+def triptych(shot, lt, tl, stagger=None):
+    """Three panels, each opening as a clean vertical door from its centre line,
+    one after another on the eighth notes — full height, crisp edges, no drift."""
+    from .score import BEAT
+    stagger = BEAT / 2 if stagger is None else stagger
     w, h = tl.w, tl.h
     gap = int(h * 0.008)
     out = np.empty((h, w, 3), np.float32)
     out[:] = brand.f32(brand.INK)
     pw = (w - 2 * gap) // 3
     for i, c in enumerate(shot.clips):
-        e = fx.expo_out(fx.window(lt, stagger * i, stagger * i + 0.5))
+        e = fx.expo_out(fx.window(lt, stagger * i, stagger * i + 0.32))
         if e <= 0:
             continue
         img = c.buf.frame(c.src_time(lt))
-        z = c.zoom[0] + (c.zoom[1] - c.zoom[0]) * lt / shot.dur
-        panel = fx.reframe(img, z, c.center[0], c.center[1], out_size=(pw, h))
+        p = lt / shot.dur
+        z = (c.zoom[0] + (c.zoom[1] - c.zoom[0]) * p) * (1 + 0.08 * (1 - e))
+        ce = c.center_end or c.center
+        cx, cy = c.center[0] + (ce[0] - c.center[0]) * p, c.center[1] + (ce[1] - c.center[1]) * p
+        panel = fx.reframe(img, z, cx, cy, out_size=(pw, h))
         panel = tl.look.grade(panel, **c.grade)
-        panel = fx.shift(panel, dy=(1 - e) * h * 0.05)
-        half = int(e * h / 2)
+        half = int(round(e * pw / 2))
         x0 = i * (pw + gap)
-        out[h // 2 - half: h // 2 + half, x0:x0 + pw] = panel[h // 2 - half: h // 2 + half]
+        a, b = pw // 2 - half, pw // 2 + half
+        out[:, x0 + a:x0 + b] = panel[:, a:b]
     return out
 
 

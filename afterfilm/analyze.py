@@ -308,6 +308,24 @@ def peek(path, times, out):
         print(p)
 
 
+def frame_cuts(path, t0, t1, thresh=0.3):
+    """Every frame of [t0, t1] at native rate: histogram distance to the previous
+    frame. Returns (max_score, time_of_max, [times over thresh]). A camera cut or a
+    stray frame from another angle scores > ~0.3; motion alone stays well below."""
+    info = media.probe(path)
+    fr = media.read_frames(path, max(t0, 0), max(t1 - t0, 0.08), info["fps"], (96, 54), deinterlace=False)
+    hists = []
+    for f in fr:
+        hsv = cv2.cvtColor(f, cv2.COLOR_RGB2HSV)
+        h = cv2.calcHist([hsv], [0, 1, 2], None, [12, 6, 6], [0, 180, 0, 256, 0, 256])
+        hists.append(cv2.normalize(h, None).flatten())
+    scores = [0.0] + [1 - cv2.compareHist(hists[i - 1], hists[i], cv2.HISTCMP_CORREL) for i in range(1, len(hists))]
+    scores = np.array(scores)
+    ts = t0 + np.arange(len(scores)) / info["fps"]
+    i = int(np.argmax(scores)) if len(scores) else 0
+    return float(scores.max()) if len(scores) else 0.0, float(ts[i]) if len(ts) else t0, ts[scores > thresh].tolist()
+
+
 def strips(path, cands, out, per_sheet=12, n=6, step=0.5):
     """For each (label, timecode): a row of `n` frames around it, `step` s apart —
     enough to judge motion, framing and sharpness before committing to a shot."""
