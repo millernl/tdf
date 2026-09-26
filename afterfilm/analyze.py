@@ -308,13 +308,40 @@ def peek(path, times, out):
         print(p)
 
 
+def strips(path, cands, out, per_sheet=12, n=6, step=0.5):
+    """For each (label, timecode): a row of `n` frames around it, `step` s apart —
+    enough to judge motion, framing and sharpness before committing to a shot."""
+    out.mkdir(parents=True, exist_ok=True)
+    rows = []
+    for label, x in cands:
+        t = parse_tc(x)
+        t0 = t - step * (n - 1) / 2
+        fr = media.read_frames(path, t0, step * n, 1 / step, (TW, TH))
+        rows.append((label, t0, fr[:n]))
+    f = _font(12)
+    for k in range(0, len(rows), per_sheet):
+        chunk = rows[k:k + per_sheet]
+        img = Image.new("RGB", (n * TW, len(chunk) * (TH + 18)), (18, 20, 20))
+        d = ImageDraw.Draw(img)
+        for r, (label, t0, fr) in enumerate(chunk):
+            y = r * (TH + 18)
+            for i, im in enumerate(fr):
+                img.paste(Image.fromarray(im), (i * TW, y + 18))
+                d.text((i * TW + 3, y + 3), f"{label}  {tc(t0 + i * step)}" if i == 0 else tc(t0 + i * step),
+                       font=f, fill=(235, 235, 230) if i == 0 else (160, 165, 160))
+        img.save(out / f"strips_{k // per_sheet + 1:02d}.jpg", quality=86)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("inputs", nargs="+")
     ap.add_argument("--out", default="work/analysis")
     ap.add_argument("--peek", action="store_true", help="first input is the video, the rest are timecodes")
+    ap.add_argument("--strips", action="store_true", help="first input is the video, the rest are label=timecode")
     args = ap.parse_args()
-    if args.peek:
+    if args.strips:
+        strips(Path(args.inputs[0]), [a.split("=", 1) for a in args.inputs[1:]], Path(args.out))
+    elif args.peek:
         peek(Path(args.inputs[0]), args.inputs[1:], Path(args.out))
     else:
         analyze([Path(p) for p in args.inputs], Path(args.out))

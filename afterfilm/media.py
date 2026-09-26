@@ -44,7 +44,13 @@ def probe(path):
     }
 
 
-def read_frames(path, t_in, dur, fps, size, deinterlace=None):
+# Rescue chain for a low-bitrate export: undo block edges, calm the mosquito noise,
+# upscale cleanly, then contrast-adaptive sharpening. Grain in the grade does the rest.
+RESCUE_PRE = "deblock=filter=strong:block=8,hqdn3d=2.5:2:5:4"
+RESCUE_POST = "cas=0.45"
+
+
+def read_frames(path, t_in, dur, fps, size, deinterlace=None, pre=None, post=None):
     """Decode [t_in, t_in+dur) at `fps`, scaled+cropped to fill `size`. → uint8 [N,H,W,3]."""
     w, h = size
     info = probe(path)
@@ -53,12 +59,18 @@ def read_frames(path, t_in, dur, fps, size, deinterlace=None):
     vf = []
     if deinterlace:
         vf.append("bwdif=mode=send_field")          # 50i → 50p: every field becomes a frame
+    if pre:
+        vf.append(pre)
     vf += [f"fps={fps}", f"scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos", f"crop={w}:{h}"]
-    cmd = [ffmpeg(), "-v", "error", "-ss", f"{max(t_in, 0):.3f}", "-i", str(path), "-t", f"{dur:.3f}",
+    if post:
+        vf.append(post)
+    warm = min(0.4, max(t_in, 0)) if pre else 0.0
+    cmd = [ffmpeg(), "-v", "error", "-ss", f"{max(t_in, 0) - warm:.3f}", "-i", str(path), "-t", f"{dur + warm:.3f}",
            "-vf", ",".join(vf), "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
     raw = subprocess.run(cmd, capture_output=True, check=True).stdout
     n = len(raw) // (w * h * 3)
-    return np.frombuffer(raw[: n * w * h * 3], np.uint8).reshape(n, h, w, 3)
+    frames = np.frombuffer(raw[: n * w * h * 3], np.uint8).reshape(n, h, w, 3)
+    return frames[int(round(warm * fps)):]
 
 
 def read_audio(path, t_in=0.0, dur=None, sr=48000, channels=2):

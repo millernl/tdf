@@ -31,14 +31,17 @@ class FrameBuffer:
 
 
 class VideoSource:
-    def __init__(self, path):
+    def __init__(self, path, rescue=True):
         self.path = path
         self.info = media.probe(path)
+        self.rescue = rescue
 
     def read(self, t0, t1, fps, size):
         native = self.info["fps"] * (2 if self.info["interlaced"] else 1)
         dfps = min(fps, native)
-        frames = media.read_frames(self.path, t0, (t1 - t0) + 2 / dfps, dfps, size)
+        frames = media.read_frames(self.path, t0, (t1 - t0) + 2 / dfps, dfps, size,
+                                   pre=media.RESCUE_PRE if self.rescue else None,
+                                   post=media.RESCUE_POST if self.rescue else None)
         return FrameBuffer(frames, t0, dfps)
 
 
@@ -113,7 +116,7 @@ class Shot:
         elif self.freeze_at is not None and lt >= self.freeze_at:
             k = lt - self.freeze_at
             mono = float(fx.smoothstep(0.0, 0.14, k))
-            img = self.clip.frame(lt, self.dur, tl.look, freeze_at=self.freeze_at, mono=mono, contrast=0.55)
+            img = self.clip.frame(lt, self.dur, tl.look, freeze_at=self.freeze_at, mono=mono, contrast=0.5)
             img = fx.reframe(img, 1.0 + 0.045 * fx.ease_out(k / max(self.dur - self.freeze_at, 0.1)))
             img = fx.flash(img, max(0.0, 1 - k / 0.16) * 0.9)
         else:
@@ -141,6 +144,8 @@ class Timeline:
         self.overlays: list[Overlay] = []
         self.bars: Callable = lambda t: 0.0
         self.labels: Callable = lambda t: (None, 0.0)
+        self.cinema_at: Callable = lambda t: {}
+        self.grain_at: Callable = lambda t: 1.0
         self.layer = gfx.Layer(w, h)
         self.mask = gfx.Mask(w, h)
         self.audio = None                # stereo float32 @48k, or None
@@ -210,8 +215,8 @@ class Timeline:
                 if o.stage == stage and o.t0 <= t < o.t1:
                     img = o.fn(t, img, self)
             if stage == "pre":
-                img = self.look.bloom(img)
-        img = self.look.finish(img, n)
+                img = self.look.cinema(img, n, **self.cinema_at(t))
+        img = self.look.finish(img, n, grain=self.grain_at(t))
         img, bar = gfx.letterbox(img, self.bars(t))
         self.layer.clear()
         labels, a = self.labels(t)

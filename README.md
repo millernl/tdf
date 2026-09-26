@@ -4,20 +4,23 @@ A 30-second after-movie of **Homecoming**, the theatre show of dance school Dist
 cut from the live registration and dressed in the District98 identity
 (*Logo & Identity Design*, Phase 5, Bart de Graaff, Oct 2021).
 
-## The idea
+## The cut
 
-The dancer glyph is the door. It writes itself stroke by stroke, we fly through it into
-the show — and at the end the show shrinks back into the glyph on '98 Green'. The show
-comes home.
+130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.
 
-| time | beat |
-|---|---|
-| 0.0–2.6 | glyph writes itself (brush draw-on) → zoom-through into the show |
-| 2.6–9.6 | the story: scope letterbox, slow-mo, stripe / swoosh / light-slit transitions, footer labels in the bars |
-| 9.6–12.0 | breath → **HOMECOMING**, the show seen through the letters → fly through the *I* |
-| 12.0–22.0 | energy: bars open to full frame, cuts on the beat, whips, triptych, freeze-frame duotone, speed ramp |
-| 22.0–26.6 | the heart: bars return, finale + bows, warm light dissolves, *Welkom thuis.* |
-| 26.6–30.0 | the show shrinks into the glyph → white logo on '98 Green', wordmark tracks in, district98.nl |
+| bars | time | beat |
+|---|---|---|
+| 1–2 | 0.0–3.7 | the dancer glyph writes itself with the show inside it → the camera flies through it |
+| 3–6 | 3.7–11.1 | the story in high-contrast black & white, 2.39 scope: silhouettes, the spotlight ring, the girl at the table |
+| 7–12 | 11.1–22.2 | the drop: the stage lights snap to beams, colour floods in (remapped to green/gold), 16:9, cuts on the beat, triptych, freeze (the music stops with it), speed ramp |
+| 13–14 | 22.2–25.8 | the heart: warm gold, a leap in front of the whole cast, the cast clapping |
+| 15–17 | 25.8–30.0 | HOMECOMING written by light over the cast → fly into the *I* → it turns '98 Green' → the logo writes itself |
+
+Looks (`afterfilm/fx.py` → `PRESETS`, also exported as `.cube` in `brand/`):
+**Iron** (panchromatic B&W), **GreenGold** (stage purples → muted teal, reds/oranges → gold),
+**Gold** (warm finale). On top: filmic tone curve, halation, anamorphic streaks on the stage
+lights, bloom, lens fringing, gate weave, grain. The low-bitrate export is deblocked,
+denoised and CAS-sharpened on decode (`media.RESCUE_PRE/POST`).
 
 ## Layout
 
@@ -28,10 +31,9 @@ afterfilm/        the engine
   fx.py           the grade (Look), bloom/grain/vignette, transitions
   gfx.py          Skia vector layer: type, glyph window/zoom, lockup, letterbox + labels
   timeline.py     clips (speed ramps, Ken Burns), shots, overlays, render loop
-  sfx.py          synthesised sound design (whoosh, sub hit, riser, shutter, ticks)
+  score.py        synthesised temp score, 130 BPM (drums, timpani, low brass, clean logo bells)
   analyze.py      reads the full show → numbers, applause, tempo, top moments, contact sheets
-  plates.py       stand-in plates for the animatic
-edits/homecoming.py   the edit: structure, graphics, sound; animatic + footage casts
+edits/homecoming.py   the edit: shot list (source timecodes), structure, graphics, mix
 tools/            extract_logo.py, fetch_footage.py
 ```
 
@@ -41,9 +43,10 @@ tools/            extract_logo.py, fetch_footage.py
 pip install -r requirements.txt
 python tools/fetch_footage.py                       # draft release → footage/
 python -m afterfilm.analyze footage/*.mp4 --out work/analysis
-python -m afterfilm.analyze --peek footage/show.mp4 1:12:40 1:12:43 --out work/peek
-python edits/homecoming.py --animatic --out renders/animatic.mp4
-python edits/homecoming.py --animatic --stills 2.2 11.7 27.2 --scale 0.5   # quick frames
+python -m afterfilm.analyze --strips footage/show.mp4 A=1:12:40 B=2:18:00 --out work/strips
+python edits/homecoming.py --edl                                   # cut list
+python edits/homecoming.py --stills 2.9 11.5 27.4 --scale 0.5      # quick frames
+python edits/homecoming.py --out renders/homecoming.mp4            # master + _nomusic version
 ```
 
 `--scale 0.5` renders a half-size preview. `AFTERFILM_FFMPEG` points at a full ffmpeg build.

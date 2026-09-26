@@ -1,63 +1,117 @@
 """HOMECOMING — the 30-second after-movie.
 
-One structure, two casts: `animatic_clips()` fills it with labelled stand-in plates,
-`footage_clips()` with moments picked from the live registration. Times are on a
-120 BPM grid (0.5 s per beat) so cuts land on the music.
+Cut on a 130 BPM grid (0.4615 s a beat, 1.846 s a bar), scored like Woodkid's 'Iron'.
 
-Idea: the District98 dancer glyph is the door. It writes itself, we fly through it
-into the show — and at the end the show shrinks back into the glyph on '98 Green'.
-The show comes home.
+  bars 1–2   the dancer glyph writes itself with the show inside it, then becomes the door
+  bars 3–6   the story, in high-contrast black & white, scope letterbox
+  bars 7–12  the drop: colour floods in, frame opens to 16:9, cuts on the beat,
+             triptych, a freeze that stops the music, a speed ramp
+  bars 13–14 the heart: warm gold, the whole cast, frame closes again
+  bars 15–17 HOMECOMING over the cast → fly into the I → it turns '98 Green' →
+             the logo writes itself. No text but the title; no new shots after it.
 """
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
+import skia
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from afterfilm import brand, fx, gfx  # noqa: E402
-from afterfilm.timeline import Clip, Shot, Timeline  # noqa: E402
+from afterfilm.score import BAR, BEAT, at  # noqa: E402
+from afterfilm.timeline import Clip, Shot, Timeline, VideoSource  # noqa: E402
 
-CFG = {
-    "title": "HOMECOMING",
-    "presents": "DISTRICT98 PRESENTEERT",
-    "subtitle": "THEATERSHOW  ·  DISTRICT98",
-    "tagline": "Welkom thuis.",
-    "url": "district98.nl",
-    "labels": ("DISTRICT98", "HOMECOMING"),
-    "accent": brand.GOLD,
-}
-
-# role, start, dur, transition-in, extras
-CUTS = [
-    ("open",    1.40, 2.60, None,             {}),               # through the glyph door
-    ("atmos",   3.60, 1.80, ("stripes", .8),  {}),
-    ("detail",  5.40, 1.60, ("swoosh", .7),   {}),
-    ("solo",    7.00, 1.60, ("slit", .8),     {}),
-    ("build",   8.60, 1.00, None,             {"punch": .06}),
-    # 9.6–10.0 black: the breath before the drop
-    ("drop",   10.00, 3.00, None,             {}),               # seen through the title, then full frame
-    ("hit1",   13.00, 0.50, ("whip", .3),     {}),
-    ("hit2",   13.50, 0.50, ("whip_l", .3),   {}),
-    ("tri",    14.00, 1.60, None,             {"triptych": True}),
-    ("freeze", 15.60, 1.00, None,             {"freeze_at": .5, "punch": .05}),
-    ("hit3",   16.60, 0.50, None,             {"flash": .8}),
-    ("hit4",   17.10, 0.50, None,             {"punch": .07}),
-    ("hit5",   17.60, 0.60, ("swoosh_r", .4), {}),
-    ("spin",   18.20, 1.40, None,             {"punch": .05}),
-    ("hit6",   19.60, 0.60, ("stripes", .4),  {}),
-    ("hit7",   20.20, 0.70, ("whip", .3),     {}),
-    ("lift",   20.90, 1.30, None,             {"flash": .5}),
-    ("finale", 22.20, 2.20, ("burn", .8),     {}),
-    ("bow",    24.40, 4.10, ("burn", .6),     {}),               # shrinks into the glyph from 26.6
-]
-
-T_TITLE, T_ZOOM, T_FULL = 10.0, 11.35, 12.0
-T_END, T_END_WHITE = 26.6, 27.55
+ROOT = Path(__file__).resolve().parent.parent
+SHOW = ROOT / "footage" / "HOMECOMING.2026.PVT.mp4"
+TITLE = "HOMECOMING"
 DURATION = 30.0
 
+T_LAND = at(3)          # through the glyph door
+T_DROP = at(7)          # colour
+T_HEART = at(13)        # gold
+T_TITLE = at(15)        # HOMECOMING
+T_ZOOM = at(16) - 1.5 * BEAT
+T_GREEN = at(16)        # inside the I: '98 Green'
+T_MARK = at(16, 2)      # wordmark
 
-def build(clips, w=1920, h=1080, fps=25, cfg=CFG):
-    look = fx.Look(w, h, accent=cfg["accent"])
+
+def tc(s):
+    v = 0.0
+    for x in s.split(":"):
+        v = v * 60 + float(x)
+    return v
+
+
+# role, record start, record duration, transition-in, extras
+CUTS = [
+    ("open",   0.25,        at(4) - 0.25, None,              {}),
+    ("spot",   at(4),       BAR,          ("stripes", BEAT), {}),
+    ("table",  at(5),       2 * BEAT,     None,              {}),
+    ("rise",   at(5, 2),    2 * BEAT,     None,              {}),
+    ("beams",  at(6),       2 * BEAT,     ("slit", BEAT),    {}),
+    ("pile",   at(6, 2),    BEAT,         None,              {}),
+    ("hair",   at(6, 3),    BEAT,         None,              {}),
+    ("drop",   T_DROP,      2 * BEAT,     None,              {"flash": 0.55}),
+    ("amber",  at(7, 2),    2 * BEAT,     None,              {}),
+    ("98",     at(8),       2 * BEAT,     None,              {"punch": 0.035}),
+    ("cast",   at(8, 2),    2 * BEAT,     None,              {}),
+    ("tri",    at(9),       BAR,          None,              {"triptych": True}),
+    ("freeze", at(10),      BAR,          None,              {"freeze_at": 2 * BEAT}),
+    ("ramp",   at(11),      BAR,          None,              {"flash": 0.5}),
+    ("floor",  at(12),      BEAT,         None,              {}),
+    ("green",  at(12, 1),   BEAT,         None,              {}),
+    ("smile",  at(12, 2),   BEAT,         None,              {}),
+    ("crowd",  at(12, 3),   BEAT,         None,              {}),
+    ("leap",   T_HEART,     BAR,          ("burn", 0.6),     {}),
+    ("family", at(14),      T_GREEN - at(14) + 0.1, ("burn", 0.9), {}),
+]
+
+
+def footage_clips(path=SHOW):
+    src = VideoSource(str(path))
+    iron = {"look": "iron"}
+    color = {"look": "color"}
+    gold = {"look": "gold"}
+
+    def C(t, **k):
+        return Clip(src, tc(t), **k)
+
+    clips = {
+        # the story — black & white
+        "open":   C("0:00:07.30", speed=0.5, zoom=(1.0, 1.06), grade=iron, note="opening number · silhouettes walk out of the haze"),
+        "spot":   C("0:28:08.60", speed=0.8, zoom=(1.04, 1.0), grade=iron, note="breaker in the spotlight ring"),
+        "table":  C("1:05:35.90", speed=0.7, zoom=(1.06, 1.1), grade=iron, note="girl alone at the dinner table"),
+        "rise":   C("1:06:55.50", speed=0.8, grade=iron, note="close · the group rises"),
+        "beams":  C("1:39:39.00", speed=1.0, zoom=(1.0, 1.03), grade=iron, note="white beams, three silhouettes"),
+        "pile":   C("2:13:29.00", speed=1.0, zoom=(1.12, 1.14), grade=iron, note="bodies piled in the spotlight"),
+        "hair":   C("1:13:59.60", speed=1.0, grade=iron, note="cast in black, hair flying"),
+        # the drop — colour
+        "drop":   C("2:18:00.40", speed=1.0, grade={**color, "exposure": -0.25}, note="the lights snap to beams"),
+        "amber":  C("1:34:23.20", speed=1.0, grade=color, note="amber close · dancers whip past"),
+        "98":     C("0:37:10.30", speed=1.0, grade=color, note="the '98' jerseys"),
+        "cast":   C("1:14:09.00", speed=1.0, grade=color, note="cast in black, full out"),
+        "freeze": C("2:09:59.70", speed=0.6, grade={**color, "exposure": 0.7}, note="red solo · handstand → freeze"),
+        "ramp":   C("1:35:59.00", speed=[(0, 1.3), (0.55, 0.28), (1.3, 0.28), (BAR, 1.4)], grade=color,
+                    note="hair flip · speed ramp"),
+        "floor":  C("0:09:35.40", speed=1.0, grade=color, note="floor work in amber haze"),
+        "green":  C("1:58:19.00", speed=1.0, zoom=(1.14, 1.16), center=(0.44, 0.5), grade=color, note="green stage"),
+        "smile":  C("0:37:58.90", speed=1.0, zoom=(1.08, 1.1), grade=color, note="a grin under a cap"),
+        "crowd":  C("2:18:20.00", speed=1.0, zoom=(1.16, 1.18), center=(0.43, 0.5), grade=color, note="yellow beams over the audience"),
+        # the heart — gold
+        "leap":   C("2:25:53.70", speed=0.5, zoom=(1.04, 1.08), grade=gold, note="a leap in front of the whole cast"),
+        "family": C("2:24:03.90", speed=0.5, zoom=(1.0, 1.05), grade=gold, note="the whole cast, clapping"),
+    }
+    clips["tri"] = [
+        C("2:10:47.00", speed=0.8, zoom=(1.0, 1.02), center=(0.55, 0.5), grade=color, note="red solo, close"),
+        C("0:48:43.30", speed=0.8, zoom=(1.0, 1.02), center=(0.5, 0.5), grade=color, note="dancers in white"),
+        C("2:16:47.00", speed=0.8, zoom=(1.0, 1.02), center=(0.45, 0.5), grade=color, note="silhouettes on orange"),
+    ]
+    return clips
+
+
+def build(clips, w=1920, h=1080, fps=25):
+    look = fx.Look(w, h, accent=brand.GOLD)
     tl = Timeline(w, h, fps, DURATION, look)
     for role, start, dur, trans, extra in CUTS:
         if extra.get("triptych"):
@@ -66,291 +120,207 @@ def build(clips, w=1920, h=1080, fps=25, cfg=CFG):
             tl.add(Shot(start, dur, clip=clips[role], trans=trans,
                         **{k: v for k, v in extra.items() if k in ("punch", "flash", "freeze_at")}))
 
-    # ── letterbox: scope for the story, full frame for the energy ──
     def bars(t):
-        if t < T_ZOOM + 0.45:
+        if t < T_DROP:
             return 1.0
-        if t < 21.7:
-            return 1 - fx.expo_in_out(fx.window(t, T_ZOOM + 0.45, T_FULL + 0.3))
-        if t < T_END:
-            return fx.expo_in_out(fx.window(t, 21.7, 22.2))
-        return 1 - fx.ease_in_out(fx.window(t, T_END, T_END + 0.6))
+        if t < T_HEART:
+            return 1 - fx.expo_out(fx.window(t, T_DROP, T_DROP + 0.35))
+        if t < T_ZOOM:
+            return fx.ease_in_out(fx.window(t, T_HEART, T_HEART + 0.7))
+        return 1 - fx.ease_in(fx.window(t, T_ZOOM + 0.2, T_GREEN))
     tl.bars = bars
 
-    shots_sorted = sorted(tl.shots, key=lambda s: s.start)
+    def cinema_at(t):
+        if t < T_DROP:
+            return {"mono": 1.0, "streaks": 0.9, "halation": 0.7}
+        if t < T_HEART:
+            return {"mono": 0.0, "streaks": 1.0, "halation": 1.0}
+        if t < T_GREEN:
+            return {"mono": 0.0, "streaks": 1.2, "halation": 1.3, "bloom": 1.2}
+        return {"mono": 0.0, "streaks": 0.0, "halation": 0.0, "bloom": 0.0, "weave": 0.4}
+    tl.cinema_at = cinema_at
+    tl.grain_at = lambda t: 1.3 if t < T_DROP else (1.0 if t < T_HEART else (0.9 if t < T_GREEN else 0.55))
 
-    def labels(t):
-        spans = [(2.4, 11.6), (22.3, T_END - 0.2)]
-        for a, b in spans:
-            if a <= t < b + 0.2:
-                p = fx.window(t, a, a + 0.6)
-                alpha = 1 - fx.window(t, b, b + 0.2)
-                cur = next((s for s in reversed(shots_sorted) if s.start <= t), None)
-                clip = cur.all_clips()[0] if cur else None
-                st = clip.src_time(t - cur.start) if clip else t
-                tc = f"LIVE  {int(st // 3600):02d}:{int(st % 3600 // 60):02d}:{int(st % 60):02d}"
-                strs = [s[: int(round(len(s) * p))] for s in (*cfg["labels"], tc)]
-                return strs, alpha
-        return None, 0.0
-    tl.labels = labels
+    # ── opening: the glyph writes itself, the show inside; then it's the door ──
+    open_h = h * 0.26
+    glyph_h = int(open_h)
 
-    # ── opening: the glyph writes itself, then becomes the door ──
-    open_h = h * 0.2
-
-    @tl.overlay(0.0, 2.6)
+    @tl.overlay(0.0, T_LAND)
     def opening(t, img, tl):
         black = np.zeros_like(img)
-        if t < 1.4:
-            out = gfx.glyph_drawon(black, fx.window(t, 0.12, 1.25), w / 2, h / 2, open_h)
-            tl.layer.clear()
-            f = brand.font(brand.MONO, h * 0.0165)
-            a = 1 - fx.window(t, 1.18, 1.38)
-            gfx.typewriter(tl.layer.c, cfg["presents"], f, w / 2, h / 2 + open_h * 0.78,
-                           fx.window(t, 0.5, 1.1), alpha=a, tracking=0.14, align="center")
-            return tl.layer.over(out)
-        u = fx.window(t, 1.4, 2.6)
-        p = fx.ease_in(u) ** 0.8
-        m = gfx.glyph_window(tl.mask, w, h, p, open_h, rot0=0.0)[..., None]
-        v = fx.smoothstep(0.18, 0.5, u)                 # white ink turns into the show
-        inside = (1 - v) + img * v
-        return gfx.rim(black * (1 - m) + inside * m, m, 0.8 * (1 - u))
+        if t < at(2):
+            p = fx.window(t, 0.25, at(2) - 0.15)
+            alpha, tm = brand.glyph_drawon(glyph_h)
+            soft = 0.07
+            reveal = fx.clamp01((p * (1 + soft) - tm) / soft) * alpha
+            m = _paste_mask(np.zeros(img.shape[:2], np.float32), reveal, w / 2, h / 2)
+            inside = 1 - (1 - img) * 0.75                     # lift so the window reads
+            out = black * (1 - m[..., None]) + inside * m[..., None]
+            if 0 < p < 1:
+                head = np.exp(-((tm - p) / 0.035) ** 2) * alpha * (tm <= p + 0.02)
+                halo = cv2.GaussianBlur(head, (0, 0), 6) * 2.0
+                out = gfx.paste_alpha(out, np.clip(halo, 0, 1), np.array([1.0, 0.92, 0.8], np.float32),
+                                      w / 2, h / 2, 0.6)
+            return gfx.rim(out, m, 0.35)
+        u = fx.window(t, at(2), T_LAND)
+        p = fx.ease_in(u) ** 0.75
+        # the draw-on raster carries an 8px pad either side; the vector window must match it
+        m = gfx.glyph_window(tl.mask, w, h, p, glyph_h - 16, rot0=0.0)[..., None]
+        inside = 1 - (1 - img) * (1 - 0.25 * (1 - u))
+        return gfx.rim(black * (1 - m) + inside * m, m, 0.35 * (1 - u))
 
-    # ── title: the show seen through the letters, then we fly through the I ──
-    title_font = brand.font(brand.DISPLAY_THIN, h * 0.135)
-
-    @tl.overlay(T_TITLE, T_FULL)
-    def title(t, img, tl):
-        track = 0.62 - 0.30 * fx.expo_out(fx.window(t, T_TITLE, T_TITLE + 1.0))
-        path = gfx.text_path(cfg["title"], title_font, tracking=track)
-        b = path.computeTightBounds()
-        i_idx = cfg["title"].index("I")
-        ib = gfx.text_path(cfg["title"][: i_idx + 1], title_font, tracking=track).computeTightBounds()
-        pivot_x = ib.right() - title_font.getSize() * 0.035   # centre of the I stem
-        pivot_y = (b.top() + b.bottom()) / 2
-        z = fx.window(t, T_ZOOM, T_FULL)
-        s = 1.0 * (90.0 ** (z ** 2.2))                  # exponential fly-through
-        k = fx.smoothstep(0, 0.35, z)
-        ax = (b.left() + b.right()) / 2 + (pivot_x - (b.left() + b.right()) / 2) * k
-        n = len(cfg["title"])
-
-        def draw(c, paint):
-            c.translate(w / 2, h / 2)
-            c.scale(s, s)
-            c.translate(-ax, -pivot_y)
-            # letters arrive one by one
-            x = 0.0
-            glyphs = title_font.textToGlyphs(cfg["title"])
-            widths = title_font.getWidths(glyphs)
-            for i, (g, gw) in enumerate(zip(glyphs, widths)):
-                li = fx.window(t, T_TITLE + 0.05 * i, T_TITLE + 0.05 * i + 0.5)
-                gp = title_font.getPath(g)
-                if gp is not None and li > 0:
-                    gp.offset(x, (1 - fx.expo_out(li)) * h * 0.02)
-                    c.drawPath(gp, skia_paint(li))
-                x += gw + track * title_font.getSize()
-
-        m = tl.mask.draw(draw)[..., None]
-        lifted = 1 - (1 - img) * (1 - 0.38 * (1 - z))   # lift the picture so the letters read
-        out = gfx.rim(lifted * m, m, 0.55 * (1 - z))
-        tl.layer.clear()
-        if z < 0.05:
-            sub = brand.font(brand.MONO, h * 0.0165)
-            a = 1 - fx.window(t, T_ZOOM - 0.25, T_ZOOM)
-            gfx.typewriter(tl.layer.c, cfg["subtitle"], sub, w / 2, h / 2 + b.height() * 0.5 + h * 0.07,
-                           fx.window(t, T_TITLE + 0.45, T_TITLE + 1.0), alpha=a, tracking=0.14, align="center")
-        return tl.layer.over(out)
-
-    # ── triptych numbers + freeze caption ──
-    @tl.overlay(14.0, 15.6, stage="post")
-    def tri_labels(t, img, tl):
-        tl.layer.clear()
-        f = brand.font(brand.MONO, h * 0.0145)
-        pw = w / 3
-        for i in range(3):
-            a = fx.window(t, 14.0 + 0.12 * i + 0.25, 14.0 + 0.12 * i + 0.55) * (1 - fx.window(t, 15.4, 15.6))
-            gfx.text(tl.layer.c, f"0{i + 1}", f, pw * i + w * 0.02, h * 0.06, brand.WHITE, a, tracking=0.1)
-        return tl.layer.over(img)
-
-    @tl.overlay(16.1, 16.6, stage="post")
-    def freeze_caption(t, img, tl):
-        tl.layer.clear()
-        c = tl.layer.c
-        f = brand.font(brand.MONO, h * 0.0165)
-        p = fx.window(t, 16.12, 16.4)
-        x0, y = w * 0.06, h * 0.9
-        c.drawRect(skia_rect(x0, y - h * 0.045, w * 0.22 * fx.expo_out(p), 1.5), skia_paint(1.0))
-        gfx.typewriter(c, "Nº 01  ·  " + cfg["title"], f, x0, y, fx.window(t, 16.18, 16.45), tracking=0.12)
-        return tl.layer.over(img)
-
-    # ── tagline over the bows ──
-    tag_font = brand.font(brand.DISPLAY_ITALIC, h * 0.062)
-
-    @tl.overlay(24.8, T_END, stage="post")
-    def tagline(t, img, tl):
-        tl.layer.clear()
-        p = fx.window(t, 24.9, 25.9)
-        a = fx.smoothstep(0, 0.6, p) * (1 - fx.window(t, T_END - 0.35, T_END))
-        gfx.text(tl.layer.c, cfg["tagline"], tag_font, w / 2, h * 0.7, brand.WHITE, a,
-                 tracking=0.02 + 0.10 * (1 - fx.expo_out(p)), align="center")
-        return tl.layer.over(img)
-
-    # ── end: the show shrinks back into the glyph — home ──
-    lock_h = h * 0.34
-    lock_dy = -h * 0.035
-    gcx, gcy, gh = gfx.lockup_glyph_box(w, h, lock_h, lock_dy)
+    # ── title: HOMECOMING written by light over the cast, then into the I ──
+    title_font = brand.font(brand.DISPLAY_THIN, h * 0.118)
+    track = 0.34
+    tpath = gfx.text_path(TITLE, title_font, tracking=track)
+    tb = tpath.computeTightBounds()
+    i_idx = TITLE.index("I")
+    glyphs = title_font.textToGlyphs(TITLE)
+    widths = title_font.getWidths(glyphs)
+    i_path = title_font.getPath(glyphs[i_idx])
+    i_path.offset(float(sum(widths[:i_idx])) + track * title_font.getSize() * i_idx, 0)
+    ib = i_path.computeTightBounds()
+    pivot = ((ib.left() + ib.right()) / 2, (ib.top() + ib.bottom()) / 2)
+    cx0, cy0 = (tb.left() + tb.right()) / 2, (tb.top() + tb.bottom()) / 2
     green = brand.f32(brand.GREEN)
+    paper = np.array([0.96, 0.95, 0.92], np.float32)
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
-    rad = np.sqrt(((xx - w / 2) / w) ** 2 + ((yy - h * 0.45) / h) ** 2)
-    green_bg = (green * (1.12 - 0.35 * rad[..., None])).astype(np.float32)
+    rad = np.sqrt(((xx - w / 2) / w) ** 2 + ((yy - h * 0.47) / h) ** 2)
+    green_bg = (green * (1.14 - 0.42 * rad[..., None])).astype(np.float32)
 
-    @tl.overlay(T_END, DURATION + 1, stage="post")
-    def endcard(t, img, tl):
-        u = fx.window(t, T_END, T_END + 1.3)
-        p = 1 - fx.ease_out(u) ** 0.9
-        m = gfx.glyph_window(tl.mask, w, h, p, gh, center=(gcx / w, gcy / h))[..., None]
-        white = fx.smoothstep(0.0, 1.0, fx.window(t, T_END_WHITE, T_END_WHITE + 0.45))
-        inside = img * (1 - white) + white
-        out = gfx.rim(green_bg * (1 - m) + inside * m, m, 0.5 * (1 - white))
+    def title_matrix(z, drift=0.0, extra=1.0):
+        # z: 0 → title at rest, 1 → deep inside the I (its stem covers the frame)
+        s = (1 + drift) * extra * (260.0 ** (z ** 2.4))
+        k = fx.smoothstep(0, 0.4, z)
+        ax, ay = cx0 + (pivot[0] - cx0) * k, cy0 + (pivot[1] - cy0) * k
+        m = skia.Matrix()
+        m.preTranslate(w / 2, h / 2)
+        m.preScale(s, s)
+        m.preTranslate(-ax, -ay)
+        return m
+
+    def mask_of(path, m):
+        def draw(c, paint):
+            c.concat(m)
+            c.drawPath(path, paint)
+        return tl.mask.draw(draw).copy()
+
+    @tl.overlay(T_TITLE, T_GREEN + 0.02, stage="post")
+    def title(t, img, tl):
+        # the cast recedes: defocus + dim
+        d = fx.ease_in_out(fx.window(t, T_TITLE, T_TITLE + 0.6))
+        if d > 0:
+            img = cv2.GaussianBlur(img, (0, 0), 1 + 9 * d) * (1 - 0.45 * d)
+        z = fx.window(t, T_ZOOM, T_GREEN)
+        drift = fx.window(t, T_TITLE, T_ZOOM) * 0.02
+        m = title_matrix(z, drift)
+        letters = mask_of(tpath, m)
+        imask = mask_of(i_path, m)
+        # written left → right by a travelling band of light
+        sweep = fx.window(t, T_TITLE + 0.05, T_TITLE + 0.95)
+        band = -0.1 + 1.25 * fx.ease_in_out(sweep)
+        x0p = w / 2 - (cx0 - tb.left()) * (1 + drift)
+        x1p = w / 2 + (tb.right() - cx0) * (1 + drift)
+        xn = (xx[0] - x0p) / max(x1p - x0p, 1)
+        reveal = fx.clamp01((band - xn) / 0.08)[None, :]
+        glint = np.exp(-((xn - band) / 0.035) ** 2)[None, :] * float(0 < sweep < 1)
+        letters = letters * reveal
+        i_here = imask * reveal
+        others = np.clip(letters - i_here, 0, 1)
+        if 0.04 < z < 0.98:
+            # zoom blur on the fly-in: the other letters smear outward
+            acc = others.copy()
+            for k_ in (0.985, 0.97, 0.955):
+                acc += np.clip(mask_of(tpath, title_matrix(z, drift, k_)) - imask, 0, 1)
+            others = np.clip(acc / 4, 0, 1)
+        glow = cv2.GaussianBlur(letters, (0, 0), 7) * 0.32 * (1 - z)
+        out = img + glow[..., None] * paper * 0.8
+        out = out * (1 - others[..., None]) + paper * others[..., None]
+        g = fx.smoothstep(0.0, 0.35, z)                     # the I turns '98 Green'
+        i_col = paper * (1 - g) + green_bg * g
+        out = out * (1 - i_here[..., None]) + i_col * i_here[..., None]
+        out = out + (glint * letters)[..., None] * 0.6
+        out = gfx.rim(out, i_here, 0.6 * g * (1 - z))
+        return np.clip(out, 0, 1)
+
+    # ── outro: inside the I it's '98 Green'; the glyph writes itself, the wordmark arrives ──
+    lock_h = h * 0.36
+    gcx, gcy, gh = gfx.lockup_glyph_box(w, h, lock_h, 0.0)
+
+    @tl.overlay(T_GREEN, DURATION + 1, stage="post")
+    def outro(t, img, tl):
+        out = green_bg.copy()
+        out = gfx.glyph_drawon(out, fx.window(t, T_GREEN + 0.08, T_MARK + 0.35), gcx, gcy, gh)
         tl.layer.clear()
-        gfx.draw_wordmark(tl.layer.c, w, h, lock_h, fx.window(t, 28.15, 29.05), cy_offset=lock_dy)
-        f = brand.font(brand.MONO, h * 0.02)
-        gfx.typewriter(tl.layer.c, cfg["url"], f, w / 2, h / 2 + lock_h * 0.5 + lock_dy + h * 0.085,
-                       fx.window(t, 28.95, 29.45), tracking=0.12, align="center", cursor=t < 29.9)
+        gfx.draw_wordmark(tl.layer.c, w, h, lock_h, fx.window(t, T_MARK, T_MARK + 0.9))
         return tl.layer.over(out)
 
     return tl
 
 
+def _paste_mask(m, alpha, cx, cy):
+    ah, aw = alpha.shape
+    x0, y0 = int(round(cx - aw / 2)), int(round(cy - ah / 2))
+    H, W = m.shape
+    sx, sy = max(0, -x0), max(0, -y0)
+    dx0, dy0, dx1, dy1 = max(0, x0), max(0, y0), min(W, x0 + aw), min(H, y0 + ah)
+    m[dy0:dy1, dx0:dx1] = alpha[sy:sy + dy1 - dy0, sx:sx + dx1 - dx0]
+    return m
+
+
 def _triptych(shot, lt, tl):
     w, h = tl.w, tl.h
-    gap = int(h * 0.009)
+    gap = int(h * 0.008)
     out = np.empty((h, w, 3), np.float32)
-    out[:] = brand.f32(brand.GREEN) * 0.9
+    out[:] = brand.f32(brand.INK)
     pw = (w - 2 * gap) // 3
     for i, c in enumerate(shot.clips):
-        e = fx.expo_out(fx.window(lt, 0.12 * i, 0.12 * i + 0.55))
+        e = fx.expo_out(fx.window(lt, BEAT / 2 * i, BEAT / 2 * i + 0.5))
         if e <= 0:
             continue
         img = c.buf.frame(c.src_time(lt))
         z = c.zoom[0] + (c.zoom[1] - c.zoom[0]) * lt / shot.dur
         panel = fx.reframe(img, z, c.center[0], c.center[1], out_size=(pw, h))
         panel = tl.look.grade(panel, **c.grade)
-        panel = fx.shift(panel, dy=(1 - e) * h * 0.06)
+        panel = fx.shift(panel, dy=(1 - e) * h * 0.05)
         half = int(e * h / 2)
         x0 = i * (pw + gap)
         out[h // 2 - half: h // 2 + half, x0:x0 + pw] = panel[h // 2 - half: h // 2 + half]
     return out
 
 
-def skia_paint(a):
-    import skia
-    return skia.Paint(AntiAlias=True, Color4f=skia.Color4f(1, 1, 1, float(a)))
-
-
-def skia_rect(x, y, w, h):
-    import skia
-    return skia.Rect.MakeXYWH(x, y, w, h)
-
-
-# ── sound ────────────────────────────────────────────────────────────────────
-def sound(bed=None, cfg=CFG):
-    """Sound design on the cut. `bed`: stereo music (the show's own audio, conformed to
-    the edit); without one, a temp 120 BPM pulse stands in."""
-    from afterfilm import sfx
-    n = int(DURATION * sfx.SR)
-    fxt = np.zeros((n, 2), np.float32)
-
-    def ticks(t0, t1, chars, every=2):
-        for k in range(0, chars, every):
-            sfx.place(fxt, sfx.tick(), t0 + (t1 - t0) * k / chars)
-
-    sfx.place(fxt, sfx.shimmer(1.3), 0.12)
-    ticks(0.5, 1.1, len(cfg["presents"]))
-    sfx.place(fxt, sfx.whoosh(1.2, 150, 5000, (0, 0), 0.55), 1.4)
-    ticks(2.4, 3.0, 24, 3)
-    for role, start, dur, trans, extra in CUTS:
-        if trans:
-            name, d = trans
-            if name.startswith("whip"):
-                w = sfx.whoosh(0.4, 600, 8000, (-0.8, 0.8) if name == "whip" else (0.8, -0.8), 0.5)
-            elif name.startswith("swoosh"):
-                w = sfx.whoosh(d * 1.1, 300, 4500, (-0.7, 0.7) if name == "swoosh" else (0.7, -0.7), 0.5)
-            elif name == "burn":
-                w = sfx.whoosh(d * 1.4, 120, 1200, (0, 0), 0.3)
-            else:
-                w = sfx.whoosh(d * 1.1, 400, 6000, (-0.3, 0.3), 0.4)
-            sfx.place(fxt, w, start - 0.1)
-        if extra.get("punch") or extra.get("flash"):
-            sfx.place(fxt, sfx.sub_hit(0.6, 70, 45, 0.35), start)
-        if extra.get("freeze_at") is not None:
-            sfx.place(fxt, sfx.shutter(0.45), start + extra["freeze_at"])
-    sfx.place(fxt, sfx.riser(1.0, 0.4), 9.0)
-    sfx.place(fxt, sfx.sub_hit(1.8, 62, 32, 0.95), T_TITLE)
-    ticks(T_TITLE + 0.45, T_TITLE + 1.0, len(cfg["subtitle"]), 3)
-    sfx.place(fxt, sfx.whoosh(0.75, 200, 9000, (0, 0), 0.6), T_ZOOM)
-    sfx.place(fxt, sfx.sub_hit(1.0, 60, 40, 0.6), T_FULL)
-    ticks(22.3, 22.9, 24, 3)
-    sfx.place(fxt, sfx.whoosh(1.3, 5000, 180, (0, 0), 0.45), T_END)
-    sfx.place(fxt, sfx.shimmer(1.2, 0.2), T_END_WHITE)
-    sfx.place(fxt, sfx.sub_hit(1.4, 55, 35, 0.45), 28.15)
-    ticks(28.95, 29.45, len(cfg["url"]), 1)
-    if bed is None:
-        bed = sfx.pulse_bed(DURATION, 120, ((1.5, 9.5, 0.2), (T_TITLE, 21.9, 1.0), (22.2, 26.5, 0.35)))
-    mix = bed[:n] * 0.8 + fxt
-    # tail: fade everything out over the last second and a half
-    fade = np.ones(n, np.float32)
-    k = int(1.5 * sfx.SR)
-    fade[-k:] = np.linspace(1, 0, k) ** 1.5
-    return sfx.master(mix * fade[:, None])
-
-
-# ── casts ────────────────────────────────────────────────────────────────────
-def animatic_clips():
-    from afterfilm.plates import PlateSource as P
-    spec = {
-        "open":   (P("S01", "opening tableau · backlit silhouettes", ("tungsten", "white"), 2, 5, 0.1, 1, 0.5), 0.5, (1.0, 1.08)),
-        "atmos":  (P("S02", "wide · full stage in haze", ("cyan", "violet"), 4, 6, 0.2, 2), 0.8, (1.06, 1.0)),
-        "detail": (P("S03", "close · hands / feet / fabric", ("amber",), 2, 1, 0.3, 3), 0.7, (1.1, 1.14)),
-        "solo":   (P("S04", "solo · slow push-in", ("white", "violet"), 1, 1, 0.3, 4, 0.7), 0.6, (1.0, 1.1)),
-        "build":  (P("S05", "formation builds", ("magenta", "cyan"), 3, 7, 0.5, 5), 1.0, (1.0, 1.03)),
-        "drop":   (P("S06", "the drop · whole cast hits", ("white", "amber"), 5, 8, 1.0, 6, 0.8), 1.0, (1.04, 1.0)),
-        "hit1":   (P("S07", "jump", ("magenta",), 3, 3, 1.0, 7), 1.0, (1.0, 1.0)),
-        "hit2":   (P("S08", "turn", ("cyan",), 3, 2, 1.0, 8), 1.0, (1.0, 1.0)),
-        "freeze": (P("S10", "peak of a leap → freeze", ("amber", "white"), 3, 3, 1.0, 10), 0.8, (1.0, 1.0)),
-        "hit3":   (P("S11", "floor work", ("violet",), 2, 4, 0.9, 11), 1.0, (1.0, 1.0)),
-        "hit4":   (P("S12", "faces · joy", ("tungsten",), 2, 2, 0.8, 12), 1.0, (1.1, 1.1)),
-        "hit5":   (P("S13", "lift", ("magenta", "white"), 3, 3, 0.9, 13), 1.0, (1.0, 1.0)),
-        "spin":   (P("S14", "spin · speed ramp", ("cyan", "white"), 3, 1, 1.0, 14), [(0, 1.6), (0.45, 0.3), (1.0, 0.3), (1.4, 1.6)], (1.0, 1.05)),
-        "hit6":   (P("S15", "group canon", ("green", "white"), 4, 7, 0.9, 15), 1.0, (1.0, 1.0)),
-        "hit7":   (P("S16", "audience reaction", ("tungsten",), 2, 0, 0.7, 16, 0.4, True), 1.0, (1.0, 1.0)),
-        "lift":   (P("S17", "signature lift · slow-mo", ("white", "amber"), 3, 2, 0.8, 17), 0.5, (1.0, 1.06)),
-        "finale": (P("S18", "finale tableau", ("tungsten", "amber", "white"), 5, 9, 0.3, 18, 0.8), 0.8, (1.0, 1.05)),
-        "bow":    (P("S19", "bows · standing ovation", ("tungsten", "white"), 4, 9, 0.4, 19, 0.8), 1.0, (1.0, 1.04)),
-    }
-    clips = {k: Clip(src, 0.0, speed=sp, zoom=z, note=src.note) for k, (src, sp, z) in spec.items()}
-    clips["tri"] = [Clip(P(f"S09.{i + 1}", "dancer close-up", (c,), 2, 1, 0.9, 90 + i), 0.0, note="dancer close-up")
-                    for i, c in enumerate(("magenta", "amber", "cyan"))]
-    return clips
+def mix(music=True):
+    from afterfilm import score
+    y = score.compose(DURATION, music=music, logo=True)
+    return (y / (np.abs(y).max() + 1e-9) * 0.89).astype(np.float32)
 
 
 if __name__ == "__main__":
     import argparse
+    import subprocess
+    from afterfilm import media
     ap = argparse.ArgumentParser()
-    ap.add_argument("--animatic", action="store_true")
     ap.add_argument("--out", default="renders/homecoming.mp4")
     ap.add_argument("--scale", type=float, default=1.0)
     ap.add_argument("--stills", nargs="*", type=float)
+    ap.add_argument("--edl", action="store_true")
     a = ap.parse_args()
     W, H = int(1920 * a.scale) // 2 * 2, int(1080 * a.scale) // 2 * 2
-    if not a.animatic:
-        raise SystemExit("footage cast not picked yet — run the analysis on the show first (see README); "
-                         "use --animatic for the stand-in version")
-    tl = build(animatic_clips(), W, H)
+    tl = build(footage_clips(), W, H)
     Path(a.out).parent.mkdir(parents=True, exist_ok=True)
-    if a.stills:
+    if a.edl:
+        print(tl.edl())
+    elif a.stills:
         print(tl.stills(a.stills, str(Path(a.out).with_suffix("")) + "_{t:05.2f}.png"))
     else:
-        from afterfilm import media
-        wav = str(Path(a.out).with_suffix(".wav"))
-        media.write_wav(wav, sound())
-        tl.render(a.out, wav=wav)
+        stem = str(Path(a.out).with_suffix(""))
+        for tag, music in (("", True), ("_nomusic", False)):
+            raw = f"{stem}{tag}.raw.wav"
+            media.write_wav(raw, mix(music))
+            # social-media loudness: -14 LUFS integrated, -1 dBTP
+            subprocess.run([media.ffmpeg(), "-v", "error", "-y", "-i", raw, "-af",
+                            "loudnorm=I=-14:TP=-1.0:LRA=11", "-ar", "48000", f"{stem}{tag}.wav"], check=True)
+            Path(raw).unlink()
+        tl.render(a.out, wav=f"{stem}.wav")
+        subprocess.run([media.ffmpeg(), "-v", "error", "-y", "-i", a.out, "-i", f"{stem}_nomusic.wav", "-map", "0:v",
+                        "-map", "1:a", "-c:v", "copy", "-c:a", "aac", "-b:a", "256k", f"{stem}_nomusic.mp4"], check=True)

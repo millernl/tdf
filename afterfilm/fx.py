@@ -62,62 +62,130 @@ def _chroma(color):
 
 
 # ── the grade ────────────────────────────────────────────────────────────────
+# Looks share one pipeline; a preset is a set of knobs. Colour arc of the film:
+# 'iron' (high-contrast black & white) → 'color' (stage light remapped into the
+# brand's green / gold) → 'gold' (warm, for the finale).
+PRESETS = {
+    "iron":  dict(mono=1.0, sat=0.0, remap=0.0, contrast=0.42, expo=0.05, split=0.45, warmth=0.0),
+    "color": dict(mono=0.0, sat=0.92, remap=1.0, contrast=0.30, expo=0.0, split=1.0, warmth=0.1),
+    "gold":  dict(mono=0.0, sat=0.85, remap=1.0, contrast=0.22, expo=0.08, split=1.1, warmth=0.75),
+}
+BW_MIX = np.array([0.50, 0.40, 0.10], np.float32)        # orange-filter panchromatic: skin glows, violet light sinks
+
+# hue remap: stage purples/blues → desaturated teal, reds/oranges/yellows → gold, greens → '98 Green'
+_H_IN = np.array([0, 25, 45, 65, 100, 140, 180, 210, 240, 270, 300, 330, 360], np.float32)
+_H_OUT = np.array([18, 32, 40, 48, 105, 125, 168, 184, 192, 200, 240, 350, 378], np.float32)
+_S_MUL = np.array([0.9, 1.0, 0.92, 0.8, 0.6, 0.7, 0.65, 0.55, 0.38, 0.28, 0.3, 0.55, 0.9], np.float32)
+
+
+def filmic(x):
+    """ACES-style filmic tone curve on display-referred input (mid-grey held)."""
+    lin = np.power(np.clip(x, 0, 1), 2.2) * 0.8
+    y = (lin * (2.51 * lin + 0.03)) / (lin * (2.43 * lin + 0.59) + 0.14)
+    return np.power(np.clip(y, 0, 1), 1 / 2.2)
+
+
 class Look:
-    """'98 Green / Gold' — matte blacks with green in the shadows, warm highlights,
-    restrained saturation, stage lights that bloom. One place to tune the film."""
+    """The District98 film look — one place to tune the picture."""
 
     def __init__(self, w, h, accent=brand.GOLD, seed=98):
         self.w, self.h = w, h
         self.shadow_tint = _chroma(brand.GREEN)
         self.high_tint = _chroma(accent)
         self.accent = brand.f32(accent)
-        self.black = np.array([0.018, 0.026, 0.022], np.float32)   # off-black leaning green (#1C2120 family)
+        self.black = np.array([0.016, 0.022, 0.019], np.float32)   # off-black leaning green (#1C2120 family)
         yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
         r = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2) / np.sqrt(2)
-        self.vignette = (1 - 0.34 * smoothstep(0.35, 1.0, r) ** 1.3)[..., None].astype(np.float32)
+        self.vignette = (1 - 0.38 * smoothstep(0.3, 1.0, r) ** 1.3)[..., None].astype(np.float32)
         rng = np.random.default_rng(seed)
         self.grain = []
-        for _ in range(8):
-            g = rng.standard_normal((h // 2, w // 2)).astype(np.float32)
-            g = cv2.GaussianBlur(g, (0, 0), 0.7)
-            g = cv2.resize(g, (w, h), interpolation=cv2.INTER_LINEAR)
+        for _ in range(12):
+            g = rng.standard_normal((int(h / 1.6), int(w / 1.6))).astype(np.float32)
+            g = cv2.GaussianBlur(g, (0, 0), 0.6)
+            g = cv2.resize(g, (w, h), interpolation=cv2.INTER_CUBIC)
             self.grain.append(g / (g.std() + 1e-6))
+        self.phase = rng.uniform(0, 6.28, 6)
 
-    def grade(self, img, exposure=0.0, sat=0.82, contrast=0.38, split=1.0, mono=0.0, warmth=0.0):
-        if exposure:
-            img = img * (2.0 ** exposure)
-        if warmth:
-            img = img * np.array([1 + 0.06 * warmth, 1.0, 1 - 0.06 * warmth], np.float32)
-        img = np.clip(img, 0, 1)
-        y = luma(img)[..., None]
-        s = sat * (1 - mono)
-        img = y + (img - y) * s
-        # soft S-curve: toe and shoulder, no clipping
-        img = img + contrast * (img * img * (3 - 2 * img) - img)
-        y = luma(img)[..., None]
-        if split:
-            # tint the low-mids, not true black — black stays a clean off-black
+    def remap(self, x, amt):
+        hls = cv2.cvtColor(x, cv2.COLOR_RGB2HLS)
+        h, s = hls[..., 0].copy(), hls[..., 2].copy()
+        h2 = np.interp(h, _H_IN, _H_OUT)
+        hls[..., 0] = np.mod(h + amt * (h2 - h), 360.0)
+        hls[..., 2] = np.clip(s * (1 + amt * (np.interp(h, _H_IN, _S_MUL) - 1)), 0, 1)
+        return cv2.cvtColor(hls, cv2.COLOR_HLS2RGB)
+
+    def grade(self, img, look="color", exposure=0.0, **over):
+        p = {**PRESETS[look], **{k: v for k, v in over.items() if v is not None}}
+        x = np.clip(img, 0, 1).astype(np.float32)
+        e = p["expo"] + exposure
+        if e:
+            x = np.clip(x * (2.0 ** e), 0, 1)
+        mono = float(p["mono"])
+        if p["remap"] and mono < 1:
+            x = self.remap(x, p["remap"])
+        y = luma(x)[..., None]
+        x = y + (x - y) * p["sat"] * (1 - mono)
+        if mono:
+            bw = (np.clip(img, 0, 1) * (2.0 ** e)) @ BW_MIX
+            x = x * (1 - mono) + np.clip(bw, 0, 1)[..., None] * mono
+        x = filmic(x)
+        c = p["contrast"]
+        x = x + c * (x * x * (3 - 2 * x) - x)
+        y = luma(x)[..., None]
+        if p["split"]:
             sh = (1 - smoothstep(0.05, 0.55, y)) * smoothstep(0.0, 0.18, y)
             hi = smoothstep(0.5, 1.0, y)
-            img = img + split * (sh * self.shadow_tint * 0.38 + hi * self.high_tint * 0.2)
-        if mono:
-            # duotone for freeze frames: shadows into green-black, highlights to warm paper
-            dark = self.black + brand.f32(brand.GREEN) * 0.18
-            light = np.array([0.95, 0.94, 0.90], np.float32)
-            y2 = smoothstep(0.04, 0.92, luma(img))[..., None]
-            duo = dark + (light - dark) * y2
-            img = img * (1 - mono) + duo * mono
-        # matte: lift the floor to a tinted off-black
-        img = self.black + img * (1 - self.black)
-        return np.clip(img, 0, 1).astype(np.float32)
+            x = x + p["split"] * (sh * self.shadow_tint * 0.38 + hi * self.high_tint * 0.2)
+        if p["warmth"]:
+            w_ = p["warmth"]
+            x = x * np.array([1 + 0.05 * w_, 1 + 0.01 * w_, 1 - 0.07 * w_], np.float32)
+        x = self.black + x * (1 - self.black)
+        return np.clip(x, 0, 1).astype(np.float32)
+
+    def cinema(self, img, n, mono=0.0, halation=1.0, streaks=1.0, bloom=1.0, weave=1.0):
+        """What a lens and a film stock do to light: halation, anamorphic streaks,
+        bloom, a whisper of fringing, gate weave."""
+        w, h = self.w, self.h
+        q = cv2.resize(img, (w // 4, h // 4), interpolation=cv2.INTER_AREA)
+        ql = luma(q)
+        out = img
+        if halation:
+            hot = np.clip((ql - 0.62) / 0.38, 0, 1) ** 1.5
+            halo = cv2.GaussianBlur(hot, (0, 0), 2.2) - hot * 0.4
+            halo = cv2.resize(np.clip(halo, 0, 1), (w, h), interpolation=cv2.INTER_LINEAR)
+            col = np.array([1.0, 0.34, 0.14], np.float32) * (1 - mono) + np.array([0.9, 0.86, 0.8], np.float32) * mono
+            out = out + halo[..., None] * col * 0.26 * halation
+        if streaks:
+            pts = np.clip((ql - 0.8) / 0.2, 0, 1) ** 2
+            st = cv2.GaussianBlur(pts, (0, 0), sigmaX=w / 4 * 0.09, sigmaY=0.6)
+            st = st * 9.0 + cv2.GaussianBlur(pts, (0, 0), sigmaX=w / 4 * 0.025, sigmaY=0.5) * 3.0
+            st = cv2.resize(np.clip(st, 0, 1), (w, h), interpolation=cv2.INTER_LINEAR)
+            col = np.array([1.0, 0.86, 0.62], np.float32) * (1 - mono) + np.array([0.92, 0.94, 1.0], np.float32) * mono
+            out = out + st[..., None] * col * 0.32 * streaks
+        if bloom:
+            hot = np.clip(q - 0.66, 0, None) / 0.34
+            glow = cv2.GaussianBlur(hot, (0, 0), 5) * 0.55 + cv2.GaussianBlur(hot, (0, 0), 20) * 0.9
+            glow = cv2.resize(glow, (w, h), interpolation=cv2.INTER_LINEAR)
+            out = 1 - (1 - np.clip(out, 0, 1)) * (1 - np.clip(glow * 0.3 * bloom, 0, 1))
+        # lateral fringing, stronger toward the corners
+        k = 0.0011
+        rch = cv2.warpAffine(out[..., 0], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 + k), (w, h),
+                             borderMode=cv2.BORDER_REFLECT)
+        bch = cv2.warpAffine(out[..., 2], cv2.getRotationMatrix2D((w / 2, h / 2), 0, 1 - k), (w, h),
+                             borderMode=cv2.BORDER_REFLECT)
+        out = np.stack([rch, out[..., 1], bch], -1)
+        if weave:
+            ph = self.phase
+            s = h / 1080
+            dx = (0.55 * np.sin(n * 0.31 + ph[0]) + 0.3 * np.sin(n * 0.87 + ph[1])) * s * weave
+            dy = (0.45 * np.sin(n * 0.23 + ph[2]) + 0.25 * np.sin(n * 1.13 + ph[3])) * s * weave
+            out = cv2.warpAffine(out, np.float32([[1, 0, dx], [0, 1, dy]]), (w, h), flags=cv2.INTER_LINEAR,
+                                 borderMode=cv2.BORDER_REFLECT)
+            out = out * (1 + 0.006 * np.sin(n * 1.7 + ph[4]) + 0.004 * np.sin(n * 2.9 + ph[5]))
+        return np.clip(out, 0, 1).astype(np.float32)
 
     def bloom(self, img, strength=0.32, threshold=0.68):
-        small = cv2.resize(img, (self.w // 4, self.h // 4), interpolation=cv2.INTER_AREA)
-        hot = np.clip(small - threshold, 0, None) / (1 - threshold)
-        glow = cv2.GaussianBlur(hot, (0, 0), 6) * 0.6 + cv2.GaussianBlur(hot, (0, 0), 22) * 0.9
-        glow = cv2.resize(glow, (self.w, self.h), interpolation=cv2.INTER_LINEAR)
-        glow = glow * (0.55 + 0.45 * self.accent)           # warm the halo
-        return 1 - (1 - img) * (1 - np.clip(glow * strength, 0, 1))  # screen
+        return self.cinema(img, 0, halation=0, streaks=0, weave=0, bloom=strength / 0.3)
 
     def finish(self, img, frame_no, grain=1.0, vignette=1.0):
         if vignette:
@@ -125,18 +193,18 @@ class Look:
         if grain:
             g = self.grain[frame_no % len(self.grain)]
             y = luma(img)
-            amt = 0.02 * grain * (0.12 + 0.88 * (1 - np.abs(y - 0.45) * 1.6).clip(0, 1))
+            amt = 0.024 * grain * (0.15 + 0.85 * (1 - np.abs(y - 0.42) * 1.5).clip(0, 1))
             img = img + (g * amt)[..., None]
         return np.clip(img, 0, 1)
 
-    def write_cube(self, path, n=33):
-        """Export the base grade as a .cube LUT for reuse in Premiere / Resolve."""
+    def write_cube(self, path, look="color", n=33):
+        """Export a look as a .cube LUT for reuse in Premiere / Resolve / CapCut."""
         r = np.linspace(0, 1, n, dtype=np.float32)
         b, g, rr = np.meshgrid(r, r, r, indexing="ij")
         grid = np.stack([rr, g, b], -1).reshape(1, -1, 3)
-        out = self.grade(grid).reshape(-1, 3)
+        out = self.grade(grid, look=look).reshape(-1, 3)
         with open(path, "w") as f:
-            f.write('TITLE "District98 Green-Gold"\n')
+            f.write(f'TITLE "District98 {look}"\n')
             f.write(f"LUT_3D_SIZE {n}\n")
             for v in out:
                 f.write(f"{v[0]:.6f} {v[1]:.6f} {v[2]:.6f}\n")
