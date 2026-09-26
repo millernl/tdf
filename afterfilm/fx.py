@@ -245,7 +245,8 @@ def reframe(img, zoom=1.0, cx=0.5, cy=0.5, out_size=None, rot=0.0):
     m = cv2.getRotationMatrix2D((px, py), rot, s)
     m[0, 2] += ow / 2 - px
     m[1, 2] += oh / 2 - py
-    return cv2.warpAffine(img, m, (ow, oh), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    interp = cv2.INTER_CUBIC if s > 1.4 else cv2.INTER_LINEAR      # vertical crops upscale ~2.7x
+    return cv2.warpAffine(img, m, (ow, oh), flags=interp, borderMode=cv2.BORDER_REFLECT)
 
 
 def shift(img, dx=0, dy=0):

@@ -55,6 +55,7 @@ class Clip:
     zoom: tuple = (1.0, 1.0)             # Ken Burns: zoom at start → end of shot
     center: tuple = (0.5, 0.5)           # framing centre, normalised
     center_end: Optional[tuple] = None
+    track: Optional[list] = None         # [(p, cx), ...] horizontal framing keyed on shot progress p
     grade: dict = field(default_factory=dict)
     echo: float = 0.0                    # light trails: strength of trailing frames (0 = off)
     note: str = ""                       # what the shot is (for the EDL printout)
@@ -79,7 +80,16 @@ class Clip:
     def release(self):
         self.buf = None
 
-    def frame(self, lt, dur, look, freeze_at=None, **grade_over):
+    def center_at(self, p):
+        ce = self.center_end or self.center
+        cx = self.center[0] + (ce[0] - self.center[0]) * p
+        cy = self.center[1] + (ce[1] - self.center[1]) * p
+        if self.track:
+            ks = sorted(self.track)
+            cx = float(np.interp(p, [k[0] for k in ks], [k[1] for k in ks]))
+        return cx, cy
+
+    def frame(self, lt, dur, look, freeze_at=None, out_size=None, **grade_over):
         st = self.src_time(min(lt, freeze_at) if freeze_at is not None else lt)
         img = self.buf.frame(st)
         if self.echo:
@@ -88,11 +98,11 @@ class Clip:
                 img = np.maximum(img, self.buf.frame(st - k * 0.07) * (self.echo * 0.72 ** k))
         p = float(np.clip(lt / max(dur, 1e-6), 0, 1.2))
         z = self.zoom[0] + (self.zoom[1] - self.zoom[0]) * p
-        ce = self.center_end or self.center
-        cx = self.center[0] + (ce[0] - self.center[0]) * p
-        cy = self.center[1] + (ce[1] - self.center[1]) * p
-        if abs(z - 1) > 1e-3 or ce != self.center:
-            img = fx.reframe(img, z, cx, cy)
+        cx, cy = self.center_at(min(p, 1.0))
+        size = out_size or (img.shape[1], img.shape[0])
+        moved = (cx, cy) != tuple(self.center)
+        if abs(z - 1) > 1e-3 or moved or size != (img.shape[1], img.shape[0]):
+            img = fx.reframe(img, z, cx, cy, out_size=size)
         return look.grade(img, **{**self.grade, **grade_over})
 
 
@@ -123,11 +133,12 @@ class Shot:
         elif self.freeze_at is not None and lt >= self.freeze_at:
             k = lt - self.freeze_at
             mono = float(fx.smoothstep(0.0, 0.14, k))
-            img = self.clip.frame(lt, self.dur, tl.look, freeze_at=self.freeze_at, mono=mono, contrast=0.5)
+            img = self.clip.frame(lt, self.dur, tl.look, freeze_at=self.freeze_at, out_size=(tl.w, tl.h),
+                                  mono=mono, contrast=0.5)
             img = fx.reframe(img, 1.0 + 0.045 * fx.ease_out(k / max(self.dur - self.freeze_at, 0.1)))
             img = fx.flash(img, max(0.0, 1 - k / 0.16) * 0.9)
         else:
-            img = self.clip.frame(lt, self.dur, tl.look)
+            img = self.clip.frame(lt, self.dur, tl.look, out_size=(tl.w, tl.h))
         if self.punch:
             img = fx.reframe(img, 1 + self.punch * (1 - fx.ease_out(lt / 0.35)))
         if self.shake:
@@ -161,6 +172,8 @@ class Timeline:
         self.cinema_at: Callable = lambda t: {}
         self.grain_at: Callable = lambda t: 1.0
         self.vignette_at: Callable = lambda t: 1.0
+        self.bar_ratio = 2.39            # the letterbox window's aspect (2.39 scope; 0.8 = 4:5 in vertical)
+        self.decode_size = None          # None: decode at output size; (w, h): decode at that size
         self.layer = gfx.Layer(w, h)
         self.mask = gfx.Mask(w, h)
         self.audio = None                # stereo float32 @48k, or None
@@ -215,7 +228,7 @@ class Timeline:
             live = s.start - 0.1 <= t <= need[id(s)] + 0.05
             for c in s.all_clips():
                 if live and c.buf is None:
-                    c.prepare(need[id(s)] - s.start + 0.1, self.fps, (self.w, self.h))
+                    c.prepare(need[id(s)] - s.start + 0.1, self.fps, self.decode_size or (self.w, self.h))
                 elif not live and c.buf is not None:
                     c.release()
 
@@ -232,7 +245,7 @@ class Timeline:
             if stage == "pre":
                 img = self.look.cinema(img, n, **self.cinema_at(t))
         img = self.look.finish(img, n, grain=self.grain_at(t), vignette=self.vignette_at(t))
-        img, bar = gfx.letterbox(img, self.bars(t))
+        img, bar = gfx.letterbox(img, self.bars(t), self.bar_ratio)
         self.layer.clear()
         labels, a = self.labels(t)
         if labels:

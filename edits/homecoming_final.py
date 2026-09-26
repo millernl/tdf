@@ -179,9 +179,53 @@ def footage_clips(path=SHOW):
     return clips
 
 
+# ── 9:16 ─────────────────────────────────────────────────────────────────────
+# Where the vertical window sits in each shot: [(shot progress, centre x of the 16:9 frame)].
+# Suggested by afterfilm.vertical (motion + detail), then corrected by eye on the review
+# sheets (work/vertical/review_*.jpg). One key holds still; more keys pan smoothly.
+V_FRAMING = {
+    "open": [(0, 0.64), (1, 0.72)],        "table": [(0, 0.59)],
+    "bedroom": [(0, 0.60)],                "window": [(0, 0.545)],
+    "hands": [(0, 0.535)],                 "walk": [(0, 0.52), (1, 0.60)],
+    "singer": [(0, 0.56), (0.5, 0.60), (1, 0.66)],
+    "silhouette": [(0, 0.635)],            "arms": [(0, 0.50), (1, 0.60)],
+    "blonde": [(0, 0.39)],                 "greyhair": [(0, 0.41)],
+    "bowed": [(0, 0.43), (1, 0.50)],       "blackcast": [(0, 0.55)],
+    "silhouettes": [(0, 0.56)],            "pulled": [(0, 0.62), (1, 0.78)],
+    "armsup": [(0, 0.58)],                 "beanies": [(0, 0.66)],
+    "kidscrew": [(0, 0.40), (1, 0.47)],    "ambercrew": [(0, 0.55), (1, 0.63)],
+    "bent": [(0, 0.58)],                   "amberkids": [(0, 0.55)],
+    "glyphbacks": [(0, 0.56), (0.5, 0.40), (1, 0.54)],             "stare": [(0, 0.40)],
+    "drop": [(0, 0.52)],                   "explode": [(0, 0.37), (1, 0.72)],
+    "hairwhip": [(0, 0.82), (1, 0.74)],    "redlight": [(0, 0.77)],
+    "trails": [(0, 0.53), (0.5, 0.72), (1, 0.82)],
+    "redwalk": [(0, 0.47), (1, 0.40)],     "amber": [(0, 0.42), (1, 0.50)],
+    "d98crew": [(0, 0.41), (1, 0.49)],     "lunge": [(0, 0.59), (0.5, 0.68), (1, 0.74)],
+    "freeze": [(0, 0.515)],                "entwined": [(0, 0.515)],
+    "tower": [(0, 0.555)],                 "hug": [(0, 0.50)],
+}
+
+
+def verticalize(clips):
+    """Reframe the cast for 9:16: each shot's window from V_FRAMING; the 16:9 crop zooms
+    become the relative push only (the vertical crop already magnifies ~2.7x)."""
+    for key, c in clips.items():
+        if isinstance(c, list):                     # triptych: stacked rows show near-full frames
+            for panel in c:
+                panel.zoom, panel.center, panel.center_end = (1.0, 1.02), (0.5, 0.5), None
+            continue
+        c.zoom = (1.0, c.zoom[1] / c.zoom[0])
+        c.track = V_FRAMING[key]
+    return clips
+
+
 def build(clips, w=1920, h=1080, fps=25):
     look = fx.Look(w, h, accent=brand.GOLD)
     tl = Timeline(w, h, fps, DURATION, look)
+    vertical = h > w
+    if vertical:
+        tl.bar_ratio = 0.8                          # scope becomes a 4:5 window in 9:16
+        tl.decode_size = (1280, 720)                # decode full frames; each shot picks its window
     for start, dur, key, extra in cuts():
         trans = extra.get("trans")
         if extra.get("triptych"):
@@ -190,7 +234,7 @@ def build(clips, w=1920, h=1080, fps=25):
             tl.add(Shot(start, dur, clip=clips[key], trans=trans,
                         **{k: v for k, v in extra.items() if k in ("punch", "flash", "freeze_at", "shake")}))
 
-    close = (h / (h - w / 2.39)) + 0.02          # letterbox amount that meets in the middle
+    close = (h / (h - w / tl.bar_ratio)) + 0.02  # letterbox amount that meets in the middle
 
     def bars(t):
         if t < T_GAP:
@@ -257,9 +301,14 @@ if __name__ == "__main__":
     ap.add_argument("--stills", nargs="*", type=float)
     ap.add_argument("--edl", action="store_true")
     ap.add_argument("--verify", action="store_true")
+    ap.add_argument("--vertical", action="store_true", help="9:16, 1080x1920")
     a = ap.parse_args()
     W, H = int(1920 * a.scale) // 2 * 2, int(1080 * a.scale) // 2 * 2
+    if a.vertical:
+        W, H = H, W
     clips = footage_clips()
+    if a.vertical:
+        verticalize(clips)
     if a.verify:
         verify(clips)
         sys.exit(0)

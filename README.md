@@ -29,6 +29,13 @@ Both are in `brand/` as `.cube` LUTs.
 `python edits/homecoming_final.py --verify` scans every clip's source range frame by
 frame for camera cuts or stray frames from another angle.
 
+**9:16** — `python edits/homecoming_final.py --vertical` renders 1080×1920. Clips decode at
+the source's full 1280×720 and each shot places its vertical window per `V_FRAMING`
+(suggested by `afterfilm/vertical.py` from motion and detail, corrected by eye on its review
+sheets; more than one key pans to follow the dancer). The scope bars become a 4:5 window
+that still closes in the drum gap and bursts open on the drop; the triptych stacks into
+rows; the title, glyph and lockup are sized to the frame width.
+
 ## The 30-second cut (`edits/homecoming.py`)
 
 130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.

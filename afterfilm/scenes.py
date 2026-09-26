@@ -22,7 +22,7 @@ def paste_mask(m, alpha, cx, cy):
 # ── the door: the glyph writes itself with the show inside, then we fly through ──
 def add_glyph_door(tl, t_draw0, t_draw1, t_zoom0, t_land, height=0.26):
     w, h = tl.w, tl.h
-    gh = int(h * height)
+    gh = int(min(h * height, w * 0.4))                 # vertical frames: sized to the width
 
     @tl.overlay(0.0, t_land)
     def door(t, img, tl):
@@ -51,15 +51,20 @@ def add_glyph_door(tl, t_draw0, t_draw1, t_zoom0, t_land, height=0.26):
 
 # ── triptych ──
 def triptych(shot, lt, tl, stagger=None):
-    """Three panels, each opening as a clean vertical door from its centre line,
-    one after another on the eighth notes — full height, crisp edges, no drift."""
+    """Three panels, each opening as a clean door from its centre line, one after another
+    on the eighth notes — crisp edges, no drift. Side by side in a wide frame; stacked
+    rows (each close to 16:9) in a vertical one."""
     from .score import BEAT
     stagger = BEAT / 2 if stagger is None else stagger
     w, h = tl.w, tl.h
-    gap = int(h * 0.008)
+    vertical = h > w
+    gap = int(min(w, h) * 0.008)
     out = np.empty((h, w, 3), np.float32)
     out[:] = brand.f32(brand.INK)
-    pw = (w - 2 * gap) // 3
+    if vertical:
+        ph, pw = (h - 2 * gap) // 3, w
+    else:
+        pw, ph = (w - 2 * gap) // 3, h
     for i, c in enumerate(shot.clips):
         e = fx.expo_out(fx.window(lt, stagger * i, stagger * i + 0.32))
         if e <= 0:
@@ -67,21 +72,26 @@ def triptych(shot, lt, tl, stagger=None):
         img = c.buf.frame(c.src_time(lt))
         p = lt / shot.dur
         z = (c.zoom[0] + (c.zoom[1] - c.zoom[0]) * p) * (1 + 0.08 * (1 - e))
-        ce = c.center_end or c.center
-        cx, cy = c.center[0] + (ce[0] - c.center[0]) * p, c.center[1] + (ce[1] - c.center[1]) * p
-        panel = fx.reframe(img, z, cx, cy, out_size=(pw, h))
+        cx, cy = c.center_at(min(p, 1.0))
+        panel = fx.reframe(img, z, cx, cy, out_size=(pw, ph))
         panel = tl.look.grade(panel, **c.grade)
-        half = int(round(e * pw / 2))
-        x0 = i * (pw + gap)
-        a, b = pw // 2 - half, pw // 2 + half
-        out[:, x0 + a:x0 + b] = panel[:, a:b]
+        if vertical:
+            half = int(round(e * ph / 2))
+            y0 = i * (ph + gap)
+            a, b = ph // 2 - half, ph // 2 + half
+            out[y0 + a:y0 + b, :] = panel[a:b, :]
+        else:
+            half = int(round(e * pw / 2))
+            x0 = i * (pw + gap)
+            a, b = pw // 2 - half, pw // 2 + half
+            out[:, x0 + a:x0 + b] = panel[:, a:b]
     return out
 
 
 # ── the title, written by light, then the flight into its I and out onto the page ──
 def add_title_into_i(tl, text, t_title, t_write, t_zoom, t_white, size=0.118, track=0.34):
     w, h = tl.w, tl.h
-    font = brand.font(brand.DISPLAY_THIN, h * size)
+    font = brand.font(brand.DISPLAY_THIN, min(h * size, w * 0.085))   # ~80% of a vertical frame's width
     tpath = gfx.text_path(text, font, tracking=track)
     tb = tpath.computeTightBounds()
     i_idx = text.index("I")
@@ -186,7 +196,7 @@ def add_paper_logo(tl, t_white, t_mark, end, lock_h=0.36):
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     rad = np.sqrt(((xx - w / 2) / w) ** 2 + ((yy - h * 0.48) / h) ** 2)
     page = (PAPER * (1.0 - 0.045 * rad[..., None] ** 1.6)).astype(np.float32)
-    lh = h * lock_h
+    lh = min(h * lock_h, w * 0.34)                    # the lockup fits a vertical frame
     gcx, gcy, gh = gfx.lockup_glyph_box(w, h, lh, 0.0)
 
     @tl.overlay(t_white, end + 1, stage="post")
