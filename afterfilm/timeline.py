@@ -99,6 +99,7 @@ class Shot:
     punch: float = 0.0                   # scale kick on entry (0.06 = 6%)
     flash: float = 0.0                   # exposure flash on entry
     freeze_at: Optional[float] = None    # local seconds: freeze → duotone + slow push
+    shake: float = 0.0                   # camera shake on impact, decays over ~0.4 s
     render: Optional[Callable] = None    # custom picture: render(shot, lt, tl) → frame
     clips: list = field(default_factory=list)
 
@@ -123,6 +124,13 @@ class Shot:
             img = self.clip.frame(lt, self.dur, tl.look)
         if self.punch:
             img = fx.reframe(img, 1 + self.punch * (1 - fx.ease_out(lt / 0.35)))
+        if self.shake:
+            k = np.exp(-lt / 0.16) * self.shake
+            if k > 0.02:
+                ph = self.start * 7.31
+                dx = (np.sin(lt * 61 + ph) * 0.6 + np.sin(lt * 37 + 2 * ph) * 0.4) * 0.012 * k
+                dy = (np.sin(lt * 53 + 3 * ph) * 0.6 + np.sin(lt * 29 + ph) * 0.4) * 0.012 * k
+                img = fx.reframe(img, 1 + 0.03 * k, 0.5 + dx, 0.5 + dy, rot=np.sin(lt * 43 + ph) * 0.35 * k)
         if self.flash:
             img = fx.flash(img, self.flash * max(0.0, 1 - lt / 0.22))
         return img
@@ -146,6 +154,7 @@ class Timeline:
         self.labels: Callable = lambda t: (None, 0.0)
         self.cinema_at: Callable = lambda t: {}
         self.grain_at: Callable = lambda t: 1.0
+        self.vignette_at: Callable = lambda t: 1.0
         self.layer = gfx.Layer(w, h)
         self.mask = gfx.Mask(w, h)
         self.audio = None                # stereo float32 @48k, or None
@@ -216,7 +225,7 @@ class Timeline:
                     img = o.fn(t, img, self)
             if stage == "pre":
                 img = self.look.cinema(img, n, **self.cinema_at(t))
-        img = self.look.finish(img, n, grain=self.grain_at(t))
+        img = self.look.finish(img, n, grain=self.grain_at(t), vignette=self.vignette_at(t))
         img, bar = gfx.letterbox(img, self.bars(t))
         self.layer.clear()
         labels, a = self.labels(t)

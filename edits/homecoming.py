@@ -72,7 +72,7 @@ def footage_clips(path=SHOW):
     src = VideoSource(str(path))
     iron = {"look": "iron"}
     color = {"look": "color"}
-    gold = {"look": "gold"}
+    gold = {"look": "silver"}
 
     def C(t, **k):
         return Clip(src, tc(t), **k)

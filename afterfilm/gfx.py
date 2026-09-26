@@ -229,7 +229,7 @@ def letterbox(img, amount, ratio=2.39):
     if amount <= 0:
         return img, 0
     h, w = img.shape[:2]
-    bar = int(round((h - w / ratio) / 2 * amount))
+    bar = min(int(round((h - w / ratio) / 2 * amount)), h // 2 + 1)   # amount > 1 closes toward black
     if bar > 0:
         img[:bar] = 0
         img[h - bar:] = 0

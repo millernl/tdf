@@ -9,3 +9,5 @@ renders/
 *.m2ts
 *.wav
 __pycache__/
+music/
+*.mp3

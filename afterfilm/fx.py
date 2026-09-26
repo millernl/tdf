@@ -64,11 +64,12 @@ def _chroma(color):
 # ── the grade ────────────────────────────────────────────────────────────────
 # Looks share one pipeline; a preset is a set of knobs. Colour arc of the film:
 # 'iron' (high-contrast black & white) → 'color' (stage light remapped into the
-# brand's green / gold) → 'gold' (warm, for the finale).
+# brand's green / gold) → 'silver' (clean, faded colour for the heart).
 PRESETS = {
     "iron":  dict(mono=1.0, sat=0.0, remap=0.0, contrast=0.42, expo=0.05, split=0.45, warmth=0.0),
     "color": dict(mono=0.0, sat=0.92, remap=1.0, contrast=0.30, expo=0.0, split=1.0, warmth=0.1),
-    "gold":  dict(mono=0.0, sat=0.85, remap=1.0, contrast=0.22, expo=0.08, split=1.1, warmth=0.75),
+    # the heart: clean, faded colour — whites stay white, no sepia wash
+    "silver": dict(mono=0.0, sat=0.55, remap=1.0, contrast=0.26, expo=0.06, split=0.55, warmth=0.0),
 }
 BW_MIX = np.array([0.50, 0.40, 0.10], np.float32)        # orange-filter panchromatic: skin glows, violet light sinks
 
@@ -329,6 +330,13 @@ def t_burn(a, b, p, ctx):
     return np.clip(1 - (1 - out) * (1 - glow * np.array([1.0, 0.82, 0.55], np.float32)), 0, 1)
 
 
+def t_dip(a, b, p, ctx):
+    """Fade through black — a breath between sections."""
+    if p < 0.5:
+        return a * (1 - smoothstep(0, 0.5, p))
+    return b * smoothstep(0.5, 1.0, p)
+
+
 def flash(img, k, tint=(1.0, 0.95, 0.86)):
     """Exposure flash on a hit; k in [0, 1]."""
     if k <= 0:
@@ -346,4 +354,5 @@ TRANSITIONS = {
     "cut": t_cut,
     "dissolve": t_dissolve,
     "burn": t_burn,
+    "dip": t_dip,
 }
