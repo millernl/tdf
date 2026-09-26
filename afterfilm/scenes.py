@@ -190,6 +190,37 @@ def add_title_into_i(tl, text, t_title, t_write, t_zoom, t_white, size=0.118, tr
         return np.clip(out, 0, 1)
 
 
+# ── the sign-off: out of the white of the I, the glyph writes itself as it did at the door ──
+def add_glyph_signoff(tl, t_hit, t_draw0, t_draw1, end, height=0.28, push=0.05, afterglow=0.12):
+    """The intro's glyph door as an ending: the flare of the I burns down to black, a point
+    of light writes the glyph with the show glowing inside its strokes, and it holds while
+    the camera keeps drifting in."""
+    w, h = tl.w, tl.h
+    gh = int(min(h * height, w * 0.6))
+    alpha, tm = brand.glyph_drawon(gh)
+    sigma = max(6.0, gh * 0.021)                      # the travelling light scales with the mark
+
+    @tl.overlay(t_hit, end + 1)
+    def signoff(t, img, tl):
+        p = fx.window(t, t_draw0, t_draw1)
+        soft = 0.07
+        reveal = fx.clamp01((p * (1 + soft) - tm) / soft) * alpha
+        m = paste_mask(np.zeros(img.shape[:2], np.float32), reveal, w / 2, h / 2)
+        inside = 1 - (1 - img) * 0.75
+        out = inside * m[..., None]
+        if 0 < p < 1:
+            head = np.exp(-((tm - p) / 0.035) ** 2) * alpha * (tm <= p + 0.02)
+            halo = cv2.GaussianBlur(head, (0, 0), sigma) * 2.0
+            out = gfx.paste_alpha(out, np.clip(halo, 0, 1), np.array([1.0, 0.94, 0.84], np.float32),
+                                  w / 2, h / 2, 0.55)
+        out = gfx.rim(out, m, 0.35)
+        s = 1 + push * fx.ease_in_out(fx.window(t, t_hit, end))
+        if s > 1.0005:
+            out = cv2.warpAffine(out, cv2.getRotationMatrix2D((w / 2, h / 2), 0, s), (w, h), flags=cv2.INTER_LINEAR)
+        e = float(np.exp(-max(t - t_hit, 0.0) / afterglow))
+        return out * (1 - e) + PAPER * e
+
+
 # ── the logo on paper: the glyph written in '98 Green', the wordmark in ink ──
 def add_paper_logo(tl, t_white, t_mark, end, lock_h=0.36):
     w, h = tl.w, tl.h

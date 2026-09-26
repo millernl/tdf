@@ -43,6 +43,24 @@ sheets; more than one key pans to follow the dancer). The scope bars become a 4:
 that still closes in the drum gap and bursts open on the drop; the triptych stacks into
 rows; the title, glyph and lockup are sized to the frame width.
 
+## The 15-second teaser (`edits/homecoming_teaser.py`)
+
+9:16, 1080×1920, built from the final cut's clips and grades. The music is the arrangement's
+bar 24 and the drop's first phrase (bars 25–28), then one equal-power splice to bar 35 for
+the title and the last hit. It is read once and sliced in memory, because seeking into the
+MP3 garbles its first frame.
+
+| bars | time | beat |
+|---|---|---|
+| 24 | 0–1.8 | black & white · the lone dancer in the spotlight beam, the cast standing silent · the frame closes to a slit |
+| 25–28 | 1.8–9.2 | the drop bursts it open · the lights snap to beams, a lunge into the lens (D98 shirt), hair whipped through amber, the snap to red, light trails, the triptych stacked in rows, the handstand freeze |
+| 35–36 | 9.2–12.2 | HOMECOMING written over the frozen handstand · through the I on the last hit |
+| — | 12.2–15 | silence · the white burns down to black and the glyph writes itself, as at the film's door (`scenes.add_glyph_signoff`) |
+
+Every clip decodes at the master's full 3840×2160, so a 9:16 window at zoom 1 is a
+1215×2160 crop, downscaled rather than blown up (the triptych rows decode at 1920×1080).
+The windows (`FRAMING`) are placed on the action for the teaser's own shot lengths.
+
 ## The 30-second cut (`edits/homecoming.py`)
 
 130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.

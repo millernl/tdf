@@ -59,6 +59,8 @@ class Clip:
     grade: dict = field(default_factory=dict)
     echo: float = 0.0                    # light trails: strength of trailing frames (0 = off)
     note: str = ""                       # what the shot is (for the EDL printout)
+    hold: Optional[float] = None         # local seconds after which the clip is never read (a freeze)
+    decode: Optional[tuple] = None       # (w, h) to decode at, overriding the timeline's
     buf: object = None
 
     def src_time(self, lt):
@@ -74,6 +76,8 @@ class Clip:
 
     def prepare(self, dur, fps, size):
         if self.buf is None:
+            if self.hold is not None:
+                dur = min(dur, self.hold + 0.1)
             dec_fps = fps / max(min(self.min_speed(), 1.0), 0.25)
             self.buf = self.source.read(self.src_time(0), self.src_time(dur), dec_fps, size)
 
@@ -228,7 +232,7 @@ class Timeline:
             live = s.start - 0.1 <= t <= need[id(s)] + 0.05
             for c in s.all_clips():
                 if live and c.buf is None:
-                    c.prepare(need[id(s)] - s.start + 0.1, self.fps, self.decode_size or (self.w, self.h))
+                    c.prepare(need[id(s)] - s.start + 0.1, self.fps, c.decode or self.decode_size or (self.w, self.h))
                 elif not live and c.buf is not None:
                     c.release()
 
