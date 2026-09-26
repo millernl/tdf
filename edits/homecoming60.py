@@ -245,9 +245,9 @@ def logo_cues():
     from afterfilm import score
     n = int(DURATION * score.SR)
     bus = np.zeros((n, 2))
-    score._place(bus, score.sub(46, 28, 3.2, 0.5), T_WHITE)
-    score._place(bus, score.bell(score.hz("G5"), 5.0, 0.11, ratio=2.0), T_WHITE + 0.02)
-    score._place(bus, score.bell(score.hz("D6"), 5.0, 0.07, ratio=2.0), T_WHITE + 0.05)
+    score._place(bus, score.sub(46, 28, 3.2, 0.26), T_WHITE)
+    score._place(bus, score.bell(score.hz("G5"), 5.0, 0.085, ratio=2.0), T_WHITE + 0.02)
+    score._place(bus, score.bell(score.hz("D6"), 5.0, 0.055, ratio=2.0), T_WHITE + 0.05)
     score._place(bus, score.shimmer(1.6, (score.hz("G6"), score.hz("D7"), score.hz("A6"), score.hz("G7")), 0.04),
                  T_WHITE + 0.2)
     score._place(bus, score.bell(score.hz("D5"), 4.0, 0.06, ratio=2.0), T_MARK)
