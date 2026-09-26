@@ -4,27 +4,25 @@ A 30-second after-movie of **Homecoming**, the theatre show of dance school Dist
 cut from the live registration and dressed in the District98 identity
 (*Logo & Identity Design*, Phase 5, Bart de Graaff, Oct 2021).
 
-## The one-minute cut (`edits/homecoming60.py`)
+## The final cut (`edits/homecoming_final.py`)
 
-Cut to the Iron mix, conformed on its bar grid to 32 bars (source bars 5–12 | 17–20 |
-31–36 | 39–48 | 73–76, splices on downbeats) so the track's whole outro fill plays out
-before its hard stop at 59.1 s; the logo is written in the silence after (62.3 s total).
-The drums play a 3-3-2 gallop (1 · 2& · 4) and the fast sections cut on it.
+Cut to the Iron arrangement delivered by the client (`music/Iron_Homecoming_Edit.mp3`,
+not in git): source bars 1–23 | 32 | 33–40 | 73–76 at 130 BPM. The mix is used as-is
+(first downbeat trimmed onto the grid, a static −1.5 dB so it doesn't clip). We arrive
+through the I on its last hit; the logo is written in silence. 69 s.
 
 | bars | time | beat |
 |---|---|---|
-| 1–4 | 0–7.4 | drone · the glyph writes itself with the show inside, we fly through and stay with the silhouettes |
-| 5–8 | 7.4–14.8 | the drums · home, in black & white: a girl alone at the table, the bedroom, the window, hands pressing through a sheet |
-| 9–12 | 14.8–22.2 | the journey: walking silhouettes, a singer turning away, the spotlight ring, bodies under the sheet |
-| 13–14 | 22.2–25.8 | the build on the gallop · a stutter · in the drum gap the frame closes to black |
-| 15–20 | 25.8–36.9 | the drop bursts open in colour · jerseys, kids, a triptych of three solos, a speed ramp · a handstand freezes |
-| 21–24 | 36.9–44.3 | the heart: the whole-cast hug, faces, two voices, the District98 hoodies |
-| 25–28 | 44.3–51.7 | the return: the cast explodes out of the haze, a powermove in light trails, the audience |
-| 29–32 | 51.7–59.1 | the outro fill: the cast clapping (finale strobe removed) · HOMECOMING · into the I, onto a white page |
-| — | 59.1–62.3 | silence · the glyph in '98 Green', the wordmark in ink, a low breath of sound |
+| 1–8 | 0–14.8 | drone · the glyph door · home in black & white: silhouettes, the table, the bedroom, the window, hands through a sheet |
+| 9–16 | 14.8–29.5 | drums · walking out, the singer turns — a silhouette's head-turn answers — raised arms, a hair flip against the light, grey haze, bowed heads, the cast in black |
+| 17–23 | 29.5–42.5 | brass, colour in scope · a sheet whipped through red, a girl pulled across the floor, arms up, the red beanie kids, the kids' crew, magenta, amber kids, the glyph on their backs |
+| 24 | 42.5–44.3 | a line of dancers stares down the lens · the frame closes in the drum gap |
+| 25–32 | 44.3–59.1 | the drop · lights snap to beams, the cast explodes, jerseys, red light, light trails, a triptych of hair in three colours, lasers, amber, the D98 shirts · the handstand freezes |
+| 33–36 | 59.1–65.8 | one embrace · HOMECOMING over it · through the I on the last hit |
+| — | 65.8–69 | silence · the glyph in '98 Green', the wordmark in ink |
 
-`python edits/homecoming60.py --verify` scans every clip's source range frame by frame for
-camera cuts or stray frames from another angle.
+`python edits/homecoming_final.py --verify` scans every clip's source range frame by
+frame for camera cuts or stray frames from another angle.
 
 ## The 30-second cut (`edits/homecoming.py`)
 
@@ -57,7 +55,7 @@ afterfilm/        the engine
   music.py        conform a track to length on its bar grid (downbeat splices)
   scenes.py       glyph door, triptych, title-into-the-I, logo on paper
   analyze.py      reads the full show → numbers, applause, tempo, top moments, contact sheets
-edits/homecoming60.py the one-minute edit, cut to the Iron mix (music/iron_MIX.mp3, not in git)
+edits/homecoming_final.py the final cut, to the client's Iron arrangement (music/, not in git)
 edits/homecoming.py   the 30-second edit
 tools/            extract_logo.py, fetch_footage.py
 ```
