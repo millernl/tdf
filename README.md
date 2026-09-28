@@ -45,15 +45,21 @@ rows; the title, glyph and lockup are sized to the frame width.
 
 ## The 15-second teaser (`edits/homecoming_teaser.py`)
 
-9:16, 1080×1920, built from the final cut's clips and grades. The music is the arrangement's
-bar 24 and the drop's first phrase (bars 25–28), then one equal-power splice to bar 35 for
-the title and the last hit. It is read once and sliced in memory, because seeking into the
-MP3 garbles its first frame.
+9:16, 1080×1920, built from the final cut's clips and grades. The music starts on the
+vocal's "and faith" (bar 24), swelling in out of its own reverse reverb (the words reversed,
+put through a synthetic hall, reversed back) and ringing in that hall until the drop. It runs
+through the drop's first phrase (bars 25–28), then one equal-power splice to bar 35 for the
+title and the last hit. It is read once and sliced in memory, because seeking into the MP3
+garbles its first frame.
+
+Effects borrowed from a reference edit (work/reference, not in git) and kept to the palette:
+a backlight striking behind silhouettes, staccato punch-in cuts, single negative frames,
+four-frame motion-blur whips (`smear`) and a single-frame strobe into a shot (`strobe`).
 
 | bars | time | beat |
 |---|---|---|
-| 24 | 0–1.8 | black & white · the lone dancer in the spotlight beam, the cast standing silent · the frame closes to a slit |
-| 25–28 | 1.8–9.2 | the drop bursts it open · the lights snap to beams, a lunge into the lens (D98 shirt), hair whipped through amber, the snap to red, light trails, the triptych stacked in rows, the handstand freeze |
+| 24 | 0–1.8 | black & white · out of black the backlight strikes behind the silent cast, flickering silhouettes as the reverb swells · "and": the light lands · "faith": three punch-ins to one dancer's profile · the frame closes to a slit, two negative frames |
+| 25–28 | 1.8–9.2 | the drop bursts it open · the lights snap to beams, a whip into a lunge at the lens (D98 shirt), hair whipped through amber, the snap to red, a whip into the light trails, the triptych stacked in rows, the handstand strobing in and freezing |
 | 35–36 | 9.2–12.2 | HOMECOMING written over the frozen handstand · through the I on the last hit |
 | — | 12.2–15 | silence · the white burns down to black and the glyph writes itself, as at the film's door (`scenes.add_glyph_signoff`) |
 

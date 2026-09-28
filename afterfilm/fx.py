@@ -336,6 +336,30 @@ def t_whip(a, b, p, ctx, direction=1):
     return np.clip(hblur(out, blur), 0, 1)
 
 
+def t_smear(a, b, p, ctx, direction=1):
+    """A camera whip caught in four frames: the outgoing shot starts to smear, the cut
+    lands on the incoming shot at full smear, and it settles. Nothing slides across the
+    frame; the motion lives in the blur. Centre it on the beat (start half a length early)."""
+    h, w = b.shape[:2]
+    if p < 0.5:
+        img, k, sgn = a, (p / 0.5) ** 1.2, 1
+    else:
+        img, k, sgn = b, ((1 - p) / 0.5) ** 1.5, -1
+    if k < 0.02:
+        return img
+    off = -direction * sgn * k * 0.08 * w           # content drifts against the whip
+    m = np.float32([[1, 0, off], [0, 1, 0]])
+    out = cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+    out = hblur(out, k * 0.28 * w)
+    return np.clip(out * (1 + 0.12 * k), 0, 1)
+
+
+def t_strobe(a, b, p, ctx, n=4):
+    """The incoming shot strobes in on single frames — B, A, B, A — then holds."""
+    i = int(p * n + 1e-6)
+    return flash(b, 0.2) if i % 2 == 0 else a
+
+
 def t_cut(a, b, p, ctx):
     return b
 
@@ -375,6 +399,9 @@ TRANSITIONS = {
     "whip": t_whip,
     "whip_l": lambda a, b, p, c: t_whip(a, b, p, c, direction=-1),
     "cut": t_cut,
+    "smear": t_smear,
+    "smear_l": lambda a, b, p, c: t_smear(a, b, p, c, direction=-1),
+    "strobe": t_strobe,
     "dissolve": t_dissolve,
     "burn": t_burn,
     "dip": t_dip,
