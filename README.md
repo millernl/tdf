@@ -74,6 +74,38 @@ master (`--scale 1` for 1920×1080). The scope bars are left off, so each still 
 frame. The cinema pass and the title's blur radii scale with the frame, so a 4K still has the
 same halation and bloom as the 1080p film.
 
+## C.I.T.Y. reel (`edits/city_reel.py`)
+
+A 31-second 9:16 reel of Color In The Yard's set (show 1:37:47–1:52:12). It covers four
+songs, each in its own light, played in sync with their live sound and cut downbeat to
+downbeat. The beat grid comes from Essentia's multi-feature tracker (song tempos 150 / 86 /
+79 / 100 BPM) with the bar phase read from kick, backbeat and chord changes
+(`edits/data/city_grid.json`).
+
+| time | what |
+|---|---|
+| 0–3.2 | walk-on · song 1's intro; the white beams strike on, the three walk into the light |
+| 3.2–6.4 | song 1 · her close-up in the haze (stepped snap-in) |
+| 6.4–12.0 | song 2 · purple · his close-up strobing in, the two of them together |
+| 12.0–18.0 | song 3 · violet · a whip into the cap close-up, then the centre spot |
+| 18.0–22.8 | song 4 · yellow beams striking on, a staccato punch-in on the cap |
+| 22.8–25.2 | walk-off · song 4's last bar, cut on its final hit |
+| 25.2–27.2 | the rig's own colour cycle (white, blue, yellow, purple, green, pink), sped up |
+| 27.2–31.0 | the logo on the screen lifts off, letters flying forward (C first, Y on the impact), dots tick in; COLOR IN THE YARD writes on |
+
+Sound: levels are matched per bar and splices are equal-power, just ahead of each
+downbeat. Each change of song gets an echo-out, and the final hit rings into a hall. The
+show's own low rumble builds under the logo, and one synthesized sub impact lands with the
+letters. The logo mark is traced from the frames where it holds still on the screen:
+about 11 s averaged, haze removed by a morphological opening, then thresholded. It is cached
+in `work/city/`; the traced mark is theirs, so it stays out of git. The tagline is set in
+Bebas Neue (`brand/fonts/city`, OFL).
+
+The picture is offline until the 4K is pulled. `python edits/city_reel.py --segments` writes
+`handover/CITY_segments.csv`; cut those spans from the original in LosslessCut and export
+them as one file, `footage/CITY_4K.mp4`. Then `python -m afterfilm.conform` on that list
+writes `edits/data/city_map.json`, and the reel reads every shot from the 4K.
+
 ## The 30-second cut (`edits/homecoming.py`)
 
 130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.

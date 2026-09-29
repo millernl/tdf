@@ -72,6 +72,8 @@ PRESETS = {
     "silver": dict(mono=0.0, sat=0.55, remap=1.0, contrast=0.26, expo=0.06, split=0.55, warmth=0.0),
     # red/orange: the shot's black & white tones rendered through the red solo's own palette
     "ember": dict(mono=1.0, sat=0.0, remap=0.0, contrast=0.42, expo=0.0, split=0.0, warmth=0.0, ember=1.0),
+    # another act's own stage light, as it was: filmic, no hue remap, no brand tint
+    "stage": dict(mono=0.0, sat=1.0, remap=0.0, contrast=0.3, expo=0.0, split=0.0, warmth=0.0),
 }
 
 # Luma → colour of the red-solo shots as the 'color' look renders them (measured from
