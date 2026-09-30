@@ -106,6 +106,18 @@ The picture is offline until the 4K is pulled. `python edits/city_reel.py --segm
 them as one file, `footage/CITY_4K.mp4`. Then `python -m afterfilm.conform` on that list
 writes `edits/data/city_map.json`, and the reel reads every shot from the 4K.
 
+## Battle of the Districts outro (`edits/bod_outro.py`)
+
+A 5-second 9:16 outro built from the Battle of the Districts screen. The district borders
+draw outward from the centre and the lockup settles in, then a light passes over it. The
+seam between the two D's charges with light and they swing open like doors, while a
+shockwave runs through the map. In the opening the District98 character is written by light
+(the vector glyph, hot white at the pen, cooling to the icon's orange #FE6418), and BATTLE and
+DISTRICTS move apart to make room. It glows once, a glint crosses it, and it holds. The
+screen and the lockup are read from `work/bod/` (not in git); layers are warped per frame
+with parallax under a slow push, and the Homecoming film pass adds halation, bloom and grain,
+with no streaks.
+
 ## The 30-second cut (`edits/homecoming.py`)
 
 130 BPM (scored in the spirit of Woodkid's *Iron*), 30 s, English, no text but the title.
