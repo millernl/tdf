@@ -108,15 +108,22 @@ writes `edits/data/city_map.json`, and the reel reads every shot from the 4K.
 
 ## Battle of the Districts outro (`edits/bod_outro.py`)
 
-A 5-second 9:16 outro built from the Battle of the Districts screen. The district borders
-draw outward from the centre and the lockup settles in, then a light passes over it. The
-seam between the two D's charges with light and they swing open like doors, while a
-shockwave runs through the map. In the opening the District98 character is written by light
-(the vector glyph, hot white at the pen, cooling to the icon's orange #FE6418), and BATTLE and
-DISTRICTS move apart to make room. It glows once, a glint crosses it, and it holds. The
-screen and the lockup are read from `work/bod/` (not in git); layers are warped per frame
-with parallax under a slow push, and the Homecoming film pass adds halation, bloom and grain,
-with no streaks.
+A 5-second 9:16 outro on the cream Battle of the Districts screen. A single pen does it all,
+the way the glyph writes itself in the Homecoming film.
+
+| time | what |
+|---|---|
+| 0–0.8 | the screen, a light passing over the type |
+| 0.7–2.05 | an ember ignites at the top of the seam and runs around the right D, across the seam and around the left one; the orange burns away behind it |
+| 1.9–2.45 | BATTLE / OF THE and DISTRICTS part like curtains and leave the frame |
+| 2.05–3.65 | without lifting, the pen swings out to the dancer's raised hand and writes the District98 character in the screen's deep green |
+| 3.65–5.0 | the ember goes out, a sheen crosses the character; it holds alone, centred on the district map |
+
+The pen follows the centreline of the D's (fitted to the two rings), then the glyph's
+stroke-time map (`brand.glyph_drawon`). A camera pushes in slowly and the map moves at half
+its speed, for depth. The Homecoming film pass runs on top with light halation, bloom,
+grain and gate weave; there are no streaks and the vignette is soft, to keep the cream
+clean. The screen and the lockup are read from `work/bod/`, which is not in git.
 
 ## The 30-second cut (`edits/homecoming.py`)
 

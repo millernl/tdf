@@ -1,23 +1,24 @@
-"""BATTLE OF THE DISTRICTS → District98 — a 5-second outro, 9:16.
+"""BATTLE OF THE DISTRICTS → District98 — a 5-second outro, 9:16, on the cream screen.
 
-The Battle screen comes to life: the district borders draw outward from the centre, the
-lockup settles in and a light passes over it. Then the two halves of the DD icon charge with
-light at the seam, swing open like doors, a shockwave runs through the map, and in the opening
-the District98 character is written by light — hot white at the pen, cooling into the icon's
-orange. BATTLE and DISTRICTS make room for it; a last glint, and it holds.
+One pen does it all. An ember ignites at the top of the seam between the two D's, runs
+around the right D and across the seam around the left one, and the orange burns away behind
+it. Without lifting, the pen flows on and writes the District98 character in the screen's
+deep green — while BATTLE / OF THE and DISTRICTS part like curtains and leave. The character
+ends alone, centred, on the district map.
 
-  0.00–0.75  out of black: borders draw outward, BATTLE / OF THE / DISTRICTS settle, the D's close
-  0.85–1.45  a light sweeps across the lockup
-  1.55–1.95  the seam between the D's fills with light
-  1.95–2.50  the D's swing open; the shockwave lights the map
-  2.05–3.15  the character is written by light where the icon was
-  3.15–5.00  it settles in orange, glows once, a glint crosses it; hold
+  0.00–0.80  the screen, a light passing over the type
+  0.72–0.85  the ember ignites at the top of the seam
+  0.85–2.05  it unravels the right D, crosses the seam, unravels the left D
+  1.90–2.45  the words part and leave the frame
+  2.05–2.25  the pen travels to the character's raised hand
+  2.25–3.65  the character is written
+  3.65–5.00  the ember goes out, a sheen crosses the character; hold
 
-Assets (not in git): work/bod/poster.webp (the screen), work/bod/lockup.webp (the lockup on
+Assets (not in git): work/bod/21.webp (the cream screen), work/bod/lockup.webp (the lockup on
 transparency, same canvas). The character is the vector glyph from brand/logo_glyph.svg.
 
     python edits/bod_outro.py                   # renders/bod_outro_9x16.mp4
-    python edits/bod_outro.py --stills 1 2.2 4  # review frames
+    python edits/bod_outro.py --stills 1 2 3    # review frames
 """
 import sys
 from pathlib import Path
@@ -25,6 +26,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image
+from scipy.spatial import cKDTree
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from afterfilm import brand, fx, media  # noqa: E402
@@ -34,209 +36,227 @@ ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "work" / "bod"
 FPS, DURATION = 25, 5.0
 
-GREEN = np.array([23, 65, 42], np.float32) / 255       # the screen's flat green
-LINE = np.array([72, 106, 85], np.float32) / 255       # the district borders
-ORANGE = np.array([254, 100, 24], np.float32) / 255    # the icon
-HOT = np.array([1.0, 0.93, 0.80], np.float32)          # light at the pen
-WHITE = np.array([1.0, 1.0, 1.0], np.float32)
 
-# poster canvas geometry (1493 × 2000)
-ICON = dict(x0=561, x1=930, y0=747, y1=1076, seam=746.0)
+def rgb(*c):
+    return np.array(c, np.float32) / 255
+
+
+CREAM, LINE, INK, ORANGE = rgb(242, 239, 231), rgb(214, 213, 202), rgb(23, 65, 42), rgb(255, 100, 30)
+EMBER, SPARK = rgb(255, 150, 60), rgb(255, 238, 205)
+
+# poster canvas (1493 × 2000): the lockup rows and the D's, measured
 ROWS = {"battle": (425, 659), "ofthe": (687, 722), "districts": (1096, 1330)}
-ICON_C = (746.0, 911.5)
+D_LEFT = dict(outer=(732.0, 911.0, 171.0, 165.0), inner=(689.0, 913.0, 84.0, 115.0))
+D_RIGHT = dict(outer=(760.0, 911.0, 170.0, 165.0), inner=(802.0, 913.0, 84.0, 115.5))
+SMALL_CHAR_BOX = (660, 1700, 830, 1840)      # the poster's small character, painted out
 
-T_SWEEP = (0.85, 1.45)
-T_CHARGE = (1.55, 1.95)
-T_SPLIT = 1.95
-T_DRAW = (2.05, 3.15)
-T_GLINT = (3.9, 4.45)
-ROOM = 96.0                     # poster px the words move apart to make room for the character
-GLYPH_H = 560.0                 # poster px
+T_SHEEN = (0.15, 0.8)
+T_IGNITE = (0.72, 0.85)
+T_UNRAVEL = (0.85, 2.05)
+T_EXIT = (1.9, 2.45)
+T_TRANSIT = (2.05, 2.25)
+T_WRITE = (2.25, 3.65)
+T_GLINT = (4.0, 4.5)
+CHAR_H = 0.38                  # of the frame height
+CHAR_CY = 0.47                 # the character's centre, of the frame height
 
 
-def ease_out(x):
-    return 1 - (1 - fx.clamp01(x)) ** 3
+def d_path(d, arc_first=True, n=400):
+    """Centreline of one D ring (poster coords): arc_first — from the top junction round the
+    curved side to the bottom, then the stem back up; otherwise the stem down, then the arc up."""
+    (ox, oy, orx, ory), (ix, iy, irx, iry) = d["outer"], d["inner"]
+    side = 1 if ox < ix else -1                 # the right D bulges right (+cos), the left D left
+
+    def arc(th):
+        c, s = np.cos(th), np.sin(th)
+        return np.stack([(ox + side * orx * c + ix + side * irx * c) / 2, (oy + ory * s + iy + iry * s) / 2], -1)
+    th_down = np.linspace(-np.pi / 2, np.pi / 2, n)          # top → curved side → bottom
+    top, bot = arc(np.array([-np.pi / 2]))[0], arc(np.array([np.pi / 2]))[0]
+    stem_x = (ox + ix) / 2
+
+    def stem(a, b):
+        return np.stack([np.full(n // 3, stem_x), np.linspace(a, b, n // 3)], -1)
+    if arc_first:
+        return np.concatenate([arc(th_down), stem(bot[1], top[1])])
+    return np.concatenate([stem(top[1], bot[1]), arc(th_down[::-1])])
 
 
 class Scene:
     def __init__(self, w, h):
         self.w, self.h = w, h
-        poster = np.asarray(Image.open(ASSETS / "poster.webp").convert("RGB")).astype(np.float32) / 255
+        poster = np.asarray(Image.open(ASSETS / "21.webp").convert("RGB")).astype(np.float32) / 255
         lock = np.asarray(Image.open(ASSETS / "lockup.webp").convert("RGBA")).astype(np.float32) / 255
-        a, rgb = lock[..., 3], lock[..., :3]
+        a, col = lock[..., 3], lock[..., :3]
         H, W = a.shape
-        self.PW, self.PH = W, H
-        # the background plate: the screen with the lockup painted out in its flat green
-        cover = cv2.dilate((a > 0.01).astype(np.uint8), np.ones((7, 7), np.uint8)) > 0
-        bg = poster.copy()
-        bg[cover] = GREEN
-        self.bg = bg
+        # the plate: cream and the district lines; the lockup and the small character painted out
+        cover = cv2.dilate((a > 0.01).astype(np.uint8), np.ones((9, 9), np.uint8)) > 0
+        x0, y0, x1, y1 = SMALL_CHAR_BOX
+        box = np.zeros_like(cover)
+        box[y0:y1, x0:x1] = True
+        dark = np.abs(poster - INK).sum(-1) < np.abs(poster - LINE).sum(-1)
+        cover |= box & cv2.dilate(dark.astype(np.uint8), np.ones((5, 5), np.uint8)).astype(bool)
+        plate = poster.copy()
+        plate[cover] = CREAM
         lum = lambda c: c @ np.array([0.299, 0.587, 0.114], np.float32)   # noqa: E731
-        self.lines = fx.clamp01((lum(bg) - lum(GREEN)) / (lum(LINE) - lum(GREEN)))
-        orange = a * fx.clamp01((rgb[..., 0] - rgb[..., 1]) / 0.4)
-        white = a * (1 - fx.clamp01((rgb[..., 0] - rgb[..., 1]) / 0.4))
+        self.lines = fx.clamp01((lum(CREAM) - lum(plate)) / (lum(CREAM) - lum(LINE))).astype(np.float32)
+        orange = a * fx.clamp01((col[..., 0] - col[..., 1]) / 0.4)
+        white = a * (1 - fx.clamp01((col[..., 0] - col[..., 1]) / 0.4))
         yy = np.arange(H)[:, None]
-        xx = np.arange(W)[None, :]
-        self.text = {k: white * ((yy >= y0 - 4) & (yy <= y1 + 4)) for k, (y0, y1) in ROWS.items()}
-        self.dl = orange * (xx < ICON["seam"])
-        self.dr = orange * (xx >= ICON["seam"])
-        # poster → frame: cover the 9:16 frame (the lockup stays centred)
+        self.text = {k: (white * ((yy >= r0 - 4) & (yy <= r1 + 4))).astype(np.float32) for k, (r0, r1) in ROWS.items()}
+        self.orange = orange.astype(np.float32)
+        # the pen's route over the D's, and the moment each orange pixel burns
+        right = d_path(D_RIGHT, arc_first=True)                # top → right side → bottom → stem up
+        left = d_path(D_LEFT, arc_first=False)                 # stem down → left side → up to the top
+        hop = np.stack([np.linspace(right[-1][0], left[0][0], 30), np.linspace(right[-1][1], left[0][1], 30)], -1)
+        route = np.concatenate([right, hop, left])
+        seg = np.r_[0, np.cumsum(np.hypot(*np.diff(route, axis=0).T))]
+        self.route, self.route_u = route, seg / seg[-1]
+        tm = np.full((H, W), 2.0, np.float32)
+        ys, xs = np.nonzero(orange > 0.02)
+        pts = np.stack([xs, ys], -1).astype(np.float32)
+        nR, nH = len(right), len(hop)
+        for sel, lo, hi in ((xs >= 746, 0, nR), (xs < 746, nR + nH, len(route))):
+            _, idx = cKDTree(route[lo:hi]).query(pts[sel])
+            tm[ys[sel], xs[sel]] = self.route_u[lo + idx]
+        self.dd_tm = tm
+        # poster → frame (cover the 9:16 frame); the camera's pivot; the character
         self.s0 = h / H
         self.ox = (w - W * self.s0) / 2
-        self.icon_f = self.to_frame(*ICON_C)
-        # the character: vector, rasterised once at its largest size, warped per frame
-        gh = int(round(GLYPH_H * self.s0 * 1.08))
+        self.pivot = (w / 2, h * CHAR_CY)
+        gh = int(round(CHAR_H * h * 1.1))
         self.g_alpha, self.g_tm = brand.glyph_drawon(gh)
-        self.g_scale = GLYPH_H * self.s0 / gh
-        # soft key light from above centre, and a radial distance map for the map effects
+        self.g_scale = CHAR_H * h / gh
+        ga = self.g_alpha > 0.5
+        i = np.argmin(np.where(ga, self.g_tm, 9))
+        self.g_start = np.array(np.unravel_index(i, ga.shape)[::-1], np.float32)     # (x, y) in glyph px
         Y, X = np.mgrid[0:h, 0:w].astype(np.float32)
-        self.key = (0.82 + 0.34 * np.exp(-(((X - w / 2) / (0.65 * w)) ** 2 + ((Y - 0.40 * h) / (0.42 * h)) ** 2)))[..., None]
-        self.dist = np.hypot(X - self.icon_f[0], Y - self.icon_f[1])
         self.X, self.Y = X, Y
+        self.key = (0.985 + 0.03 * np.exp(-(((X - w / 2) / (0.7 * w)) ** 2 + ((Y - 0.42 * h) / (0.5 * h)) ** 2)))[..., None]
 
-    def to_frame(self, x, y):
-        return self.ox + x * self.s0, y * self.s0
+    # ── geometry ──
+    def F(self):
+        return np.array([[self.s0, 0, self.ox], [0, self.s0, 0], [0, 0, 1]], np.float64)
 
-    def camera(self, t):
-        return 1.0 + 0.045 * fx.ease_in_out(t / DURATION)
+    def cam(self, t):
+        z = 1.0 + 0.07 * fx.ease_in_out(t / DURATION)
+        px, py = self.pivot
+        return np.array([[z, 0, px - z * px], [0, z, py - z * py], [0, 0, 1]], np.float64)
 
-    def M(self, zoom, about=None, dx=0.0, dy=0.0, sx=1.0, hinge=None):
-        """Affine poster → frame: optional per-layer scale about a poster point, x-squash about
-        a hinge, offset, then the frame mapping and the camera push about the icon."""
-        A = np.eye(3, dtype=np.float64)
-        if about is not None and zoom != 1.0:
-            ax, ay = about
-            A = np.array([[zoom, 0, ax - zoom * ax], [0, zoom, ay - zoom * ay], [0, 0, 1]]) @ A
-        if hinge is not None and sx != 1.0:
-            A = np.array([[sx, 0, hinge - sx * hinge], [0, 1, 0], [0, 0, 1]]) @ A
-        A = np.array([[1, 0, dx], [0, 1, dy], [0, 0, 1]]) @ A
-        F = np.array([[self.s0, 0, self.ox], [0, self.s0, 0], [0, 0, 1]])
-        return F @ A
+    def warp(self, layer, M):
+        return cv2.warpAffine(layer, M[:2].astype(np.float32), (self.w, self.h), flags=cv2.INTER_LINEAR)
 
-    def warp(self, layer, M, cam, blur=0.0):
-        cx, cy = self.icon_f
-        C = np.array([[cam, 0, cx - cam * cx], [0, cam, cy - cam * cy], [0, 0, 1]])
-        out = cv2.warpAffine(layer, (C @ M)[:2].astype(np.float32), (self.w, self.h), flags=cv2.INTER_LINEAR)
-        if blur > 0.3:
-            out = cv2.GaussianBlur(out, (0, 0), blur)
-        return out
+    def poster_pt(self, p, C):
+        return (C @ self.F() @ np.array([p[0], p[1], 1.0]))[:2]
 
+    def glyph_M(self, C):
+        gh, gw = self.g_alpha.shape
+        s = self.g_scale
+        cx, cy = self.pivot
+        return C @ np.array([[s, 0, cx - s * gw / 2], [0, s, cy - s * gh / 2], [0, 0, 1]], np.float64)
+
+    def pen_at(self, t, C):
+        """Where the pen is, and how bright."""
+        if t < T_UNRAVEL[1]:
+            u = fx.ease_in_out(fx.window(t, *T_UNRAVEL))
+            i = min(int(np.searchsorted(self.route_u, u)), len(self.route) - 1)
+            return self.poster_pt(self.route[i], C), fx.ease_out(fx.window(t, *T_IGNITE))
+        a = self.poster_pt(self.route[-1], C)
+        b = (self.glyph_M(C) @ np.array([*self.g_start, 1.0]))[:2]
+        if t < T_TRANSIT[1]:
+            e = fx.ease_in_out(fx.window(t, *T_TRANSIT))
+            ctrl = (a + b) / 2 + np.array([-0.08 * self.w, 0.05 * self.h])  # swing out low, under the parting words
+            return (1 - e) ** 2 * a + 2 * (1 - e) * e * ctrl + e ** 2 * b, 1.0
+        p = min(fx.window(t, *T_WRITE), 0.999)
+        wgt = np.exp(-((self.g_tm - p) / 0.012) ** 2) * self.g_alpha
+        ys, xs = np.nonzero(wgt > 1e-3)
+        if len(xs):
+            ww = wgt[ys, xs]
+            q = np.array([(xs * ww).sum() / ww.sum(), (ys * ww).sum() / ww.sum()], np.float32)
+        else:
+            q = self.g_start
+        out = fx.window(t, T_WRITE[1] - 0.05, T_WRITE[1] + 0.35)
+        return (self.glyph_M(C) @ np.array([*q, 1.0]))[:2], 1.0 - fx.ease_in(out)
+
+    # ── the picture ──
     def render(self, shot, lt, tl):
         t = shot.start + lt
         w, h = self.w, self.h
-        cam = self.camera(t)
-        # ── the map ──
-        bgc = 1 + (cam - 1) * 0.5                                   # parallax: the ground moves less
-        fade = fx.ease_in_out(fx.window(t, 0.0, 0.5))
-        plate = self.warp(self.bg, self.M(1.0), bgc)
-        lines = self.warp(self.lines, self.M(1.0), bgc)
-        flat = GREEN * self.key
-        front = fx.window(t, 0.05, 0.95) * 1.25 * max(w, h)          # the borders draw outward
-        drawn = fx.clamp01((front - self.dist) / 90.0)
-        frontglow = np.exp(-((self.dist - front) / 55.0) ** 2) * (0 < fx.window(t, 0.05, 0.95) < 1)
-        ring_r = (t - T_SPLIT) * 1500.0                              # the shockwave
-        ring = np.exp(-((self.dist - ring_r) / 70.0) ** 2) * (t > T_SPLIT) * max(0.0, 1 - (t - T_SPLIT) / 1.3)
-        after = 0.35 * np.exp(-max(t - T_SPLIT, 0) / 0.9) * (t > T_SPLIT)
-        r2 = (t - T_DRAW[1]) * 1100.0                                # a softer echo as the character lands
-        ring2 = np.exp(-((self.dist - r2) / 90.0) ** 2) * (t > T_DRAW[1]) * max(0.0, 1 - (t - T_DRAW[1]) / 1.4)
-        lit = lines * (drawn * (1 + after) + 1.6 * frontglow + 2.4 * ring + 1.1 * ring2)
-        base = flat * (1 - lines[..., None]) + (plate * self.key) * lines[..., None]
-        img = flat + (base - flat) * drawn[..., None]
-        img = img + (lit * 0.35)[..., None] * np.array([0.55, 0.95, 0.7], np.float32)
-        img = img * fade
-        # ── the words ──
+        C = self.cam(t)
+        Cb = np.eye(3) + (C - np.eye(3)) * 0.5                    # the map moves less: depth
+        img = CREAM * self.key * np.ones((h, w, 1), np.float32)
+        lines = self.warp(self.lines, Cb @ self.F())
+        img = img * (1 - lines[..., None]) + (LINE * self.key) * lines[..., None]
+        # the words hold, a light passes over them, then they part like curtains
         cover = np.zeros((h, w), np.float32)
-        room = ROOM * fx.ease_in_out(fx.window(t, T_SPLIT, T_SPLIT + 0.55))
-        for k, (a0, a1, z0, dyk) in {"battle": (0.12, 0.50, 1.12, -room), "ofthe": (0.22, 0.55, 1.18, -room),
-                                     "districts": (0.32, 0.68, 1.10, room)}.items():
-            e = ease_out(fx.window(t, a0, a1))
-            if e <= 0:
+        for k, (a0, a1, dist) in {"battle": (T_EXIT[0] + 0.06, T_EXIT[1], -1.0),
+                                  "ofthe": (T_EXIT[0], T_EXIT[1] - 0.04, -1.0),
+                                  "districts": (T_EXIT[0], T_EXIT[1], 1.0)}.items():
+            vel = fx.window(t, a0, a1)
+            e = fx.ease_in(vel) ** 1.4
+            if vel >= 1:
                 continue
-            y0, y1 = ROWS[k]
-            about = (746.0, (y0 + y1) / 2)
-            zoom = z0 + (1 - z0) * e
-            m = self.warp(self.text[k], self.M(zoom, about, dy=dyk), cam, blur=7 * (1 - e)) * e
+            dy = dist * e * 0.72 * h / self.s0
+            D = np.array([[1, 0, 0], [0, 1, dy], [0, 0, 1]], np.float64)
+            m = self.warp(self.text[k], C @ self.F() @ D)
+            k_blur = int(1 + 70 * vel ** 2) if 0 < vel < 1 else 1
+            if k_blur > 2:
+                m = cv2.blur(m, (1, k_blur))
             cover = np.maximum(cover, m)
-        img = img * (1 - cover[..., None]) + cover[..., None] * WHITE
-        # ── the D's: they close, charge at the seam, and swing open like doors ──
-        close = ease_out(fx.window(t, 0.28, 0.62))
-        opn = fx.ease_in_out(fx.window(t, T_SPLIT, T_SPLIT + 0.55))
-        gone = fx.ease_in(fx.window(t, T_SPLIT + 0.15, T_SPLIT + 0.55))
-        charge = fx.ease_in(fx.window(t, *T_CHARGE))
-        pulse = 1 + 0.03 * charge * (1 - opn)
-        dmask = np.zeros((h, w), np.float32)
-        dcol = np.zeros((h, w, 3), np.float32)
-        for side, layer, hinge in ((-1, self.dl, ICON["x0"]), (1, self.dr, ICON["x1"])):
-            dx = side * (70 * (1 - close) + 150 * opn)
-            sx = 1 - 0.72 * opn
-            m = self.warp(layer, self.M(pulse, ICON_C, dx=dx, sx=sx, hinge=hinge), cam, blur=5 * opn) \
-                * min(1.0, 2.5 * close) * (1 - gone)
-            shade = 1 - 0.35 * opn
-            dcol = dcol * (1 - m[..., None]) + m[..., None] * ORANGE * shade
-            dmask = np.maximum(dmask, m)
-        img = img * (1 - dmask[..., None]) + dcol
-        # light in the seam, bursting as the doors open
-        sx_, sy_ = self.icon_f
-        ih = (ICON["y1"] - ICON["y0"]) * self.s0 * cam
-        seam_w = 3 + 60 * opn
-        seam = np.exp(-((self.X - sx_) / seam_w) ** 2) * np.exp(-((self.Y - sy_) / (0.6 * ih)) ** 4)
-        s_amt = charge * (1 - opn) + 1.2 * np.exp(-max(t - T_SPLIT, 0) / 0.14) * (t > T_SPLIT)
-        img = img + (seam * s_amt * 0.9)[..., None] * HOT
-        burst = np.exp(-max(t - T_SPLIT, 0) / 0.35) * (t > T_SPLIT)
-        if burst > 0.01:
-            glow = np.exp(-(self.dist / (0.35 * w)) ** 2) * burst * 0.45
-            img = img + glow[..., None] * np.array([1.0, 0.75, 0.5], np.float32)
-        # ── the character, written by light ──
-        p = fx.window(t, *T_DRAW)
-        if p > 0:
-            soft = 0.06
-            reveal = fx.clamp01((p * (1 + soft) - self.g_tm) / soft) * self.g_alpha
-            heat = np.exp(-np.maximum(p - self.g_tm, 0) / 0.08) * (p < 1)
-            settle = fx.window(t, T_DRAW[1], T_DRAW[1] + 0.35)
-            head = np.exp(-((self.g_tm - p) / 0.03) ** 2) * self.g_alpha * (self.g_tm <= p + 0.02) * (p < 1)
-            gh, gw = self.g_alpha.shape
-            s = self.g_scale
-            cx, cy = sx_, sy_
-            # keep the character centred where the icon was, riding the camera push
-            Mg = np.float32([[s * cam, 0, cx - s * cam * gw / 2], [0, s * cam, cy - s * cam * gh / 2]])
-
-            def place(a):
-                return cv2.warpAffine(a.astype(np.float32), Mg, (w, h), flags=cv2.INTER_LINEAR)
-            m = place(reveal)
-            ht = place(heat * self.g_alpha) * (1 - settle)
-            col = ORANGE[None, None, :] * (1 - ht[..., None]) + HOT[None, None, :] * ht[..., None]
-            img = img * (1 - m[..., None]) + m[..., None] * col
-            hd = place(head)
-            if hd.any():
-                halo = cv2.GaussianBlur(hd, (0, 0), 9) * 2.2
-                img = img + np.clip(halo, 0, 1.5)[..., None] * HOT * 0.8
-            # it arrives: one glow, then a glint crosses it
-            gpulse = np.exp(-max(t - T_DRAW[1], 0) / 0.4) * (t > T_DRAW[1])
-            glow = 0.7 * gpulse + 0.16 * settle * (1 + 0.25 * np.sin(2 * np.pi * (t - T_DRAW[1]) / 1.8))
-            if glow > 0.01:
-                img = img + (cv2.GaussianBlur(m, (0, 0), 16) * glow)[..., None] * ORANGE
-            g = fx.window(t, *T_GLINT)
-            if 0 < g < 1:
-                band = np.exp(-(((self.X - self.Y * 0.35) - (cx - cy * 0.35) - (-160 + 320 * fx.ease_in_out(g)) * cam) / 26) ** 2)
-                img = img + (band * m * 0.55)[..., None] * WHITE
-        # a light passes over the lockup
-        g = fx.window(t, *T_SWEEP)
+        img = img * (1 - cover[..., None]) + cover[..., None] * INK
+        g = fx.window(t, *T_SHEEN)
         if 0 < g < 1:
-            band = np.exp(-(((self.X - self.Y * 0.35) - (-250 + (w + 500) * fx.ease_in_out(g))) / 60) ** 2)
-            img = img + (band * np.maximum(cover, dmask) * 0.4)[..., None] * WHITE
+            band = np.exp(-(((self.X - self.Y * 0.4) - (-400 + (w + 900) * fx.ease_in_out(g))) / 70) ** 2)
+            img = img + (band * cover * 0.28)[..., None] * (1 - INK)
+        # the D's burn away behind the pen
+        u = fx.ease_in_out(fx.window(t, *T_UNRAVEL)) if t >= T_UNRAVEL[0] else -1.0
+        M = C @ self.F()
+        vis = self.orange * fx.clamp01((self.dd_tm - u) / 0.01)
+        vm = self.warp(vis.astype(np.float32), M)
+        img = img * (1 - vm[..., None]) + vm[..., None] * ORANGE
+        if u > 0:
+            out = np.exp(-max(t - T_UNRAVEL[1], 0) / 0.1)         # the last embers die with the pen's turn
+            ember = self.orange * np.exp(-np.maximum(u - self.dd_tm, 0) / 0.035) * (self.dd_tm <= u) * out
+            em = self.warp(ember.astype(np.float32), M)
+            if em.max() > 0.01:
+                glow = np.clip(cv2.GaussianBlur(em, (0, 0), 7) * 1.4, 0, 1) * 0.7
+                img = img * (1 - glow[..., None]) + glow[..., None] * EMBER
+                img = img * (1 - em[..., None]) + em[..., None] * EMBER
+        # the character, written in ink behind the pen
+        p = fx.window(t, *T_WRITE)
+        if p > 0:
+            soft = 0.045
+            reveal = fx.clamp01((p * (1 + soft) - self.g_tm) / soft) * self.g_alpha
+            wet = np.exp(-np.maximum(p - self.g_tm, 0) / 0.05) * self.g_alpha * (p < 1)
+            Mg = self.glyph_M(C)
+            m = self.warp(reveal.astype(np.float32), Mg)
+            wt = self.warp(wet.astype(np.float32), Mg)
+            ink = INK[None, None, :] * (1 - 0.18 * wt[..., None]) + EMBER[None, None, :] * (0.18 * wt[..., None])
+            img = img * (1 - m[..., None]) + m[..., None] * ink
+            gg = fx.window(t, *T_GLINT)
+            if 0 < gg < 1:
+                cx, cy = self.pivot
+                band = np.exp(-(((self.X - self.Y * 0.4) - (cx - cy * 0.4) - (-260 + 520 * fx.ease_in_out(gg))) / 34) ** 2)
+                img = img + (band * m * 0.22)[..., None] * (1 - INK)
+        # the pen: an ember with a white-hot core
+        if T_IGNITE[0] <= t < T_WRITE[1] + 0.4:
+            (px, py), b = self.pen_at(t, C)
+            if b > 0.01:
+                r2 = (self.X - px) ** 2 + (self.Y - py) ** 2
+                halo = np.exp(-r2 / (2 * 16.0 ** 2)) * 0.75 * b
+                core = np.exp(-r2 / (2 * 4.0 ** 2)) * b
+                img = img * (1 - halo[..., None]) + halo[..., None] * EMBER
+                img = img * (1 - core[..., None]) + core[..., None] * SPARK
         return np.clip(img, 0, 1)
 
 
 def build(w=1080, h=1920):
     look = fx.Look(w, h)
-    look.black = np.array([0.0, 0.0, 0.0], np.float32)
     tl = Timeline(w, h, FPS, DURATION, look)
     scene = Scene(w, h)
     tl.add(Shot(0.0, DURATION, render=scene.render))
-    # no anamorphic streaks: type this bright would draw bars across the frame
-    tl.cinema_at = lambda t: {"mono": 0.0, "streaks": 0.0, "halation": 0.4, "bloom": 0.85, "weave": 0.6}
-    tl.grain_at = lambda t: 0.35
-    tl.vignette_at = lambda t: 0.9
+    tl.cinema_at = lambda t: {"mono": 0.0, "streaks": 0.0, "halation": 0.3, "bloom": 0.35, "weave": 0.5}
+    tl.grain_at = lambda t: 0.28
+    tl.vignette_at = lambda t: 0.3
     return tl
 
 
