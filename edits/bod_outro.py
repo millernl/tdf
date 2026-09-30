@@ -1,18 +1,21 @@
 """BATTLE OF THE DISTRICTS → District98 — a 5-second outro, 9:16, on the cream screen.
 
-One pen does it all. An ember ignites at the top of the seam between the two D's, runs
-around the right D and across the seam around the left one, and the orange burns away behind
-it. Without lifting, the pen flows on and writes the District98 character in the screen's
-deep green — while BATTLE / OF THE and DISTRICTS part like curtains and leave. The character
-ends alone, centred, on the district map.
+Clean, flat, on a slow hip-hop pulse (90 BPM, a hit every other beat). On the first hit the
+two D's start to unwind from the top of the seam behind a clean edge, round the right D and
+across the seam round the left one. The last of the orange goes on the second hit, as
+BATTLE / OF THE and DISTRICTS snap apart and leave, and the District98 character is written in
+the screen's deep green. It is complete on the third hit and holds alone, centred on the
+district map. The camera punches in a touch on each hit. No glow: the film pass keeps only
+its grain and gate weave.
 
-  0.00–0.80  the screen, a light passing over the type
-  0.72–0.85  the ember ignites at the top of the seam
-  0.85–2.05  it unravels the right D, crosses the seam, unravels the left D
-  1.90–2.45  the words part and leave the frame
-  2.05–2.25  the pen travels to the character's raised hand
-  2.25–3.65  the character is written
-  3.65–5.00  the ember goes out, a sheen crosses the character; hold
+  0.00–0.67  the screen; a reversed 808 swells into the first hit
+  0.67       hit 1: the D's start to unwind
+  1.83–2.00  a ghost kick, then hit 2: the last of the orange goes, the words snap apart
+  2.12–3.33  the character is written
+  3.33       hit 3: the character is complete; the 808 rings out under the hold
+
+The sound is synthesised here: sine kicks and 808s, warmed so they carry on a phone and
+low-passed gently from ~900 Hz, a little room on the last one (`mix`).
 
 Assets (not in git): work/bod/21.webp (the cream screen), work/bod/lockup.webp (the lockup on
 transparency, same canvas). The character is the vector glyph from brand/logo_glyph.svg.
@@ -42,7 +45,6 @@ def rgb(*c):
 
 
 CREAM, LINE, INK, ORANGE = rgb(242, 239, 231), rgb(214, 213, 202), rgb(23, 65, 42), rgb(255, 100, 30)
-EMBER, SPARK = rgb(255, 150, 60), rgb(255, 238, 205)
 
 # poster canvas (1493 × 2000): the lockup rows and the D's, measured
 ROWS = {"battle": (425, 659), "ofthe": (687, 722), "districts": (1096, 1330)}
@@ -50,13 +52,12 @@ D_LEFT = dict(outer=(732.0, 911.0, 171.0, 165.0), inner=(689.0, 913.0, 84.0, 115
 D_RIGHT = dict(outer=(760.0, 911.0, 170.0, 165.0), inner=(802.0, 913.0, 84.0, 115.5))
 SMALL_CHAR_BOX = (660, 1700, 830, 1840)      # the poster's small character, painted out
 
-T_SHEEN = (0.15, 0.8)
-T_IGNITE = (0.72, 0.85)
-T_UNRAVEL = (0.85, 2.05)
-T_EXIT = (1.9, 2.45)
-T_TRANSIT = (2.05, 2.25)
-T_WRITE = (2.25, 3.65)
-T_GLINT = (4.0, 4.5)
+BEAT = 60 / 90
+H1, H2, H3 = BEAT, 3 * BEAT, 5 * BEAT          # the three hits
+T_UNRAVEL = (H1, H2)
+T_EXIT = (H2 - 0.06, H2 + 0.28)
+T_WRITE = (H2 + 0.12, H3)
+PUNCH = ((H1, 0.006), (H2, 0.014), (H3, 0.008))   # camera punch-in on each hit
 CHAR_H = 0.38                  # of the frame height
 CHAR_CY = 0.47                 # the character's centre, of the frame height
 
@@ -104,7 +105,7 @@ class Scene:
         yy = np.arange(H)[:, None]
         self.text = {k: (white * ((yy >= r0 - 4) & (yy <= r1 + 4))).astype(np.float32) for k, (r0, r1) in ROWS.items()}
         self.orange = orange.astype(np.float32)
-        # the pen's route over the D's, and the moment each orange pixel burns
+        # the route that unwinds the D's, and the moment each orange pixel goes
         right = d_path(D_RIGHT, arc_first=True)                # top → right side → bottom → stem up
         left = d_path(D_LEFT, arc_first=False)                 # stem down → left side → up to the top
         hop = np.stack([np.linspace(right[-1][0], left[0][0], 30), np.linspace(right[-1][1], left[0][1], 30)], -1)
@@ -126,11 +127,7 @@ class Scene:
         gh = int(round(CHAR_H * h * 1.1))
         self.g_alpha, self.g_tm = brand.glyph_drawon(gh)
         self.g_scale = CHAR_H * h / gh
-        ga = self.g_alpha > 0.5
-        i = np.argmin(np.where(ga, self.g_tm, 9))
-        self.g_start = np.array(np.unravel_index(i, ga.shape)[::-1], np.float32)     # (x, y) in glyph px
         Y, X = np.mgrid[0:h, 0:w].astype(np.float32)
-        self.X, self.Y = X, Y
         self.key = (0.985 + 0.03 * np.exp(-(((X - w / 2) / (0.7 * w)) ** 2 + ((Y - 0.42 * h) / (0.5 * h)) ** 2)))[..., None]
 
     # ── geometry ──
@@ -139,6 +136,7 @@ class Scene:
 
     def cam(self, t):
         z = 1.0 + 0.07 * fx.ease_in_out(t / DURATION)
+        z += sum(a * np.exp(-(t - th) / 0.16) for th, a in PUNCH if t >= th)
         px, py = self.pivot
         return np.array([[z, 0, px - z * px], [0, z, py - z * py], [0, 0, 1]], np.float64)
 
@@ -154,29 +152,6 @@ class Scene:
         cx, cy = self.pivot
         return C @ np.array([[s, 0, cx - s * gw / 2], [0, s, cy - s * gh / 2], [0, 0, 1]], np.float64)
 
-    def pen_at(self, t, C):
-        """Where the pen is, and how bright."""
-        if t < T_UNRAVEL[1]:
-            u = fx.ease_in_out(fx.window(t, *T_UNRAVEL))
-            i = min(int(np.searchsorted(self.route_u, u)), len(self.route) - 1)
-            return self.poster_pt(self.route[i], C), fx.ease_out(fx.window(t, *T_IGNITE))
-        a = self.poster_pt(self.route[-1], C)
-        b = (self.glyph_M(C) @ np.array([*self.g_start, 1.0]))[:2]
-        if t < T_TRANSIT[1]:
-            e = fx.ease_in_out(fx.window(t, *T_TRANSIT))
-            ctrl = (a + b) / 2 + np.array([-0.08 * self.w, 0.05 * self.h])  # swing out low, under the parting words
-            return (1 - e) ** 2 * a + 2 * (1 - e) * e * ctrl + e ** 2 * b, 1.0
-        p = min(fx.window(t, *T_WRITE), 0.999)
-        wgt = np.exp(-((self.g_tm - p) / 0.012) ** 2) * self.g_alpha
-        ys, xs = np.nonzero(wgt > 1e-3)
-        if len(xs):
-            ww = wgt[ys, xs]
-            q = np.array([(xs * ww).sum() / ww.sum(), (ys * ww).sum() / ww.sum()], np.float32)
-        else:
-            q = self.g_start
-        out = fx.window(t, T_WRITE[1] - 0.05, T_WRITE[1] + 0.35)
-        return (self.glyph_M(C) @ np.array([*q, 1.0]))[:2], 1.0 - fx.ease_in(out)
-
     # ── the picture ──
     def render(self, shot, lt, tl):
         t = shot.start + lt
@@ -186,7 +161,7 @@ class Scene:
         img = CREAM * self.key * np.ones((h, w, 1), np.float32)
         lines = self.warp(self.lines, Cb @ self.F())
         img = img * (1 - lines[..., None]) + (LINE * self.key) * lines[..., None]
-        # the words hold, a light passes over them, then they part like curtains
+        # the words hold, then snap apart like curtains
         cover = np.zeros((h, w), np.float32)
         for k, (a0, a1, dist) in {"battle": (T_EXIT[0] + 0.06, T_EXIT[1], -1.0),
                                   "ofthe": (T_EXIT[0], T_EXIT[1] - 0.04, -1.0),
@@ -203,50 +178,105 @@ class Scene:
                 m = cv2.blur(m, (1, k_blur))
             cover = np.maximum(cover, m)
         img = img * (1 - cover[..., None]) + cover[..., None] * INK
-        g = fx.window(t, *T_SHEEN)
-        if 0 < g < 1:
-            band = np.exp(-(((self.X - self.Y * 0.4) - (-400 + (w + 900) * fx.ease_in_out(g))) / 70) ** 2)
-            img = img + (band * cover * 0.28)[..., None] * (1 - INK)
-        # the D's burn away behind the pen
-        u = fx.ease_in_out(fx.window(t, *T_UNRAVEL)) if t >= T_UNRAVEL[0] else -1.0
-        M = C @ self.F()
-        vis = self.orange * fx.clamp01((self.dd_tm - u) / 0.01)
-        vm = self.warp(vis.astype(np.float32), M)
+        # the D's unwind behind a clean edge, fast off the first hit, the last of them on the second
+        w_ = fx.window(t, *T_UNRAVEL)
+        u = 1 - (1 - w_) ** 1.7 if t >= T_UNRAVEL[0] else -1.0
+        vis = self.orange * fx.clamp01((self.dd_tm - u) / 0.004)
+        vm = self.warp(vis.astype(np.float32), C @ self.F())
         img = img * (1 - vm[..., None]) + vm[..., None] * ORANGE
-        if u > 0:
-            out = np.exp(-max(t - T_UNRAVEL[1], 0) / 0.1)         # the last embers die with the pen's turn
-            ember = self.orange * np.exp(-np.maximum(u - self.dd_tm, 0) / 0.035) * (self.dd_tm <= u) * out
-            em = self.warp(ember.astype(np.float32), M)
-            if em.max() > 0.01:
-                glow = np.clip(cv2.GaussianBlur(em, (0, 0), 7) * 1.4, 0, 1) * 0.7
-                img = img * (1 - glow[..., None]) + glow[..., None] * EMBER
-                img = img * (1 - em[..., None]) + em[..., None] * EMBER
-        # the character, written in ink behind the pen
+        # the character, written in the screen's green
         p = fx.window(t, *T_WRITE)
         if p > 0:
-            soft = 0.045
+            soft = 0.01                                          # a crisp pen front
             reveal = fx.clamp01((p * (1 + soft) - self.g_tm) / soft) * self.g_alpha
-            wet = np.exp(-np.maximum(p - self.g_tm, 0) / 0.05) * self.g_alpha * (p < 1)
-            Mg = self.glyph_M(C)
-            m = self.warp(reveal.astype(np.float32), Mg)
-            wt = self.warp(wet.astype(np.float32), Mg)
-            ink = INK[None, None, :] * (1 - 0.18 * wt[..., None]) + EMBER[None, None, :] * (0.18 * wt[..., None])
-            img = img * (1 - m[..., None]) + m[..., None] * ink
-            gg = fx.window(t, *T_GLINT)
-            if 0 < gg < 1:
-                cx, cy = self.pivot
-                band = np.exp(-(((self.X - self.Y * 0.4) - (cx - cy * 0.4) - (-260 + 520 * fx.ease_in_out(gg))) / 34) ** 2)
-                img = img + (band * m * 0.22)[..., None] * (1 - INK)
-        # the pen: an ember with a white-hot core
-        if T_IGNITE[0] <= t < T_WRITE[1] + 0.4:
-            (px, py), b = self.pen_at(t, C)
-            if b > 0.01:
-                r2 = (self.X - px) ** 2 + (self.Y - py) ** 2
-                halo = np.exp(-r2 / (2 * 16.0 ** 2)) * 0.75 * b
-                core = np.exp(-r2 / (2 * 4.0 ** 2)) * b
-                img = img * (1 - halo[..., None]) + halo[..., None] * EMBER
-                img = img * (1 - core[..., None]) + core[..., None] * SPARK
+            m = self.warp(reveal.astype(np.float32), self.glyph_M(C))
+            img = img * (1 - m[..., None]) + m[..., None] * INK
         return np.clip(img, 0, 1)
+
+
+# ── the sound ────────────────────────────────────────────────────────────────
+def _lp(x, hz, sr, order=4):
+    from scipy import signal
+    return signal.sosfilt(signal.butter(order, hz / (sr / 2), output="sos"), x)
+
+
+def _warm(y, drive, sr):
+    """Tape-ish saturation, a little lopsided so it adds the octave as well as the fifth above:
+    what lets a sub be heard on a phone. The DC it leaves is filtered off."""
+    from scipy import signal
+    b = 0.18
+    z = (np.tanh(drive * (y + b)) - np.tanh(drive * b)) / np.tanh(drive)
+    return signal.sosfilt(signal.butter(2, 22 / (sr / 2), "high", output="sos"), z)
+
+
+def _kick(sr, dur=0.7):
+    """A round sine kick: a fast knock from ~190 Hz falling onto 44 Hz, no click."""
+    t = np.arange(int(dur * sr)) / sr
+    f = 44 + 146 * np.exp(-t / 0.024)
+    y = np.sin(2 * np.pi * np.cumsum(f) / sr) * np.exp(-t / 0.2) * np.minimum(t / 0.002, 1)
+    return _lp(_warm(y, 2.4, sr), 800, sr, 2)
+
+
+def _808(sr, f0, tau, dur, slide=None):
+    """A sine 808: a small pitch drop on the attack, saturated just enough to carry on a phone
+    speaker, low-passed clean. slide=(when, to Hz, how long)."""
+    t = np.arange(int(dur * sr)) / sr
+    f = f0 * (1 + 0.25 * np.exp(-t / 0.025))
+    if slide:
+        ts, f1, ls = slide
+        f = f * (1 + (f1 / f0 - 1) * fx.smoothstep(ts, ts + ls, t))
+    from scipy import signal
+    ph = np.sin(2 * np.pi * np.cumsum(f) / sr)
+    env = np.exp(-t / tau) * np.minimum(t / 0.004, 1)
+    body = _warm(ph * env, 3.2, sr)
+    # in parallel, the same note driven evenly before its envelope, kept to its low harmonics:
+    # the tail stays audible on small speakers without getting any brighter
+    edge = signal.sosfilt(signal.butter(2, (90 / (sr / 2), 450 / (sr / 2)), "band", output="sos"), _warm(ph, 2.0, sr))
+    k = np.minimum((dur - t) / 0.03, 1)                 # choked, never clicked off
+    return _lp(body + 0.7 * edge * env, 900, sr, 2) * k
+
+
+def _room(sr, rt60=1.4, seed=5):
+    from scipy import signal
+    rng = np.random.default_rng(seed)
+    t = np.arange(int(rt60 * 1.2 * sr)) / sr
+    ir = rng.standard_normal((len(t), 2)) * (10 ** (-3 * t / rt60))[:, None]
+    ir = signal.sosfilt(signal.butter(2, 1200 / (sr / 2), output="sos"), ir, axis=0)
+    ir = np.concatenate([np.zeros((int(0.015 * sr), 2)), ir])
+    return ir / np.sqrt((ir ** 2).sum(0, keepdims=True))
+
+
+def mix(sr=48000):
+    """Three hits on the pulse, all low: G, E sliding to D, E. A reversed 808 swells into the
+    first, a ghost kick leads into the second, the third rings out in a little room."""
+    from scipy import signal
+    E1, D1, G1 = 41.20, 36.71, 49.00
+    y = np.zeros(int(DURATION * sr))
+
+    def put(x, at, gain):
+        i = int(round(at * sr))
+        x = x[:len(y) - i]
+        y[i:i + len(x)] += gain * x
+
+    swell = _808(sr, E1, 0.3, 0.62)[::-1] * np.linspace(0, 1, int(0.62 * sr)) ** 2
+    put(_lp(swell, 160, sr), H1 - 0.62, 0.45)
+    put(_kick(sr), H1, 0.75)
+    put(_808(sr, G1, 0.38, H2 - BEAT / 4 - H1), H1, 0.55)
+    put(_kick(sr), H2 - BEAT / 4, 0.42)
+    put(_kick(sr), H2, 1.0)
+    put(_808(sr, E1, 0.7, H3 - H2, slide=(0.84, D1, 0.1)), H2, 0.8)
+    put(_kick(sr), H3, 0.9)
+    last = np.zeros(len(y))
+    i3 = int(round(H3 * sr))
+    tail = _808(sr, E1, 0.75, DURATION - H3)[:len(y) - i3]
+    last[i3:i3 + len(tail)] = tail
+    y += 0.85 * last
+    st = np.stack([y, y], 1)
+    wet = np.stack([signal.fftconvolve(last, c)[:len(y)] for c in _room(sr).T], 1)
+    st += wet * 10 ** (-15 / 20)
+    n = int(0.25 * sr)
+    st[-n:] *= np.linspace(1, 0, n)[:, None] ** 2
+    return (st / np.abs(st).max() * 10 ** (-1 / 20)).astype(np.float32)
 
 
 def build(w=1080, h=1920):
@@ -254,9 +284,9 @@ def build(w=1080, h=1920):
     tl = Timeline(w, h, FPS, DURATION, look)
     scene = Scene(w, h)
     tl.add(Shot(0.0, DURATION, render=scene.render))
-    tl.cinema_at = lambda t: {"mono": 0.0, "streaks": 0.0, "halation": 0.3, "bloom": 0.35, "weave": 0.5}
-    tl.grain_at = lambda t: 0.28
-    tl.vignette_at = lambda t: 0.3
+    tl.cinema_at = lambda t: {"mono": 0.0, "streaks": 0.0, "halation": 0.0, "bloom": 0.0, "weave": 0.35}
+    tl.grain_at = lambda t: 0.22
+    tl.vignette_at = lambda t: 0.25
     return tl
 
 
@@ -274,5 +304,5 @@ if __name__ == "__main__":
         print(tl.stills(a.stills, str(Path(a.out).with_suffix("")) + "_{t:05.2f}.png"))
     else:
         wav = str(Path(a.out).with_suffix(".wav"))
-        media.write_wav(wav, np.zeros((int(DURATION * 48000), 2), np.float32))   # a silent track, for editors
+        media.write_wav(wav, mix())
         tl.render(a.out, wav=wav)

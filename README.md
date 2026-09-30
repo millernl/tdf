@@ -108,22 +108,23 @@ writes `edits/data/city_map.json`, and the reel reads every shot from the 4K.
 
 ## Battle of the Districts outro (`edits/bod_outro.py`)
 
-A 5-second 9:16 outro on the cream Battle of the Districts screen. A single pen does it all,
-the way the glyph writes itself in the Homecoming film.
+A 5-second 9:16 outro on the cream Battle of the Districts screen: clean and flat, on a slow
+hip-hop pulse (90 BPM, a hit every other beat).
 
 | time | what |
 |---|---|
-| 0–0.8 | the screen, a light passing over the type |
-| 0.7–2.05 | an ember ignites at the top of the seam and runs around the right D, across the seam and around the left one; the orange burns away behind it |
-| 1.9–2.45 | BATTLE / OF THE and DISTRICTS part like curtains and leave the frame |
-| 2.05–3.65 | without lifting, the pen swings out to the dancer's raised hand and writes the District98 character in the screen's deep green |
-| 3.65–5.0 | the ember goes out, a sheen crosses the character; it holds alone, centred on the district map |
+| 0–0.67 | the screen; a reversed 808 swells into the first hit |
+| 0.67 | hit 1 · the two D's start to unwind from the top of the seam behind a clean edge, round the right D and across the seam round the left one |
+| 1.83–2.0 | a ghost kick, then hit 2 · the last of the orange goes, BATTLE / OF THE and DISTRICTS snap apart and leave the frame |
+| 2.12–3.33 | the District98 character is written stroke by stroke in the screen's deep green (`brand.glyph_drawon`) |
+| 3.33–5.0 | hit 3 · the character is complete and holds alone, centred on the district map, as the 808 rings out |
 
-The pen follows the centreline of the D's (fitted to the two rings), then the glyph's
-stroke-time map (`brand.glyph_drawon`). A camera pushes in slowly and the map moves at half
-its speed, for depth. The Homecoming film pass runs on top with light halation, bloom,
-grain and gate weave; there are no streaks and the vignette is soft, to keep the cream
-clean. The screen and the lockup are read from `work/bod/`, which is not in git.
+The camera pushes in slowly and punches in a touch on each hit; the map moves at half its
+speed, for depth. There is no glow: the film pass keeps only its grain and gate weave, with
+a soft vignette. The sound is synthesised in `mix()`: round sine kicks and 808s (G, then E
+sliding to D, then E), warmed so they carry on a phone, gently low-passed from about 900 Hz,
+with a little room on the last hit. The screen and the lockup are read from `work/bod/`,
+which is not in git.
 
 ## The 30-second cut (`edits/homecoming.py`)
 
