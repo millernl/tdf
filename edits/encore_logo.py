@@ -1,24 +1,29 @@
 """ENCORE98 — the logo intro for the dance video.
 
-A 1-second overlay (1920×1080, 30 fps, alpha) that replaces the placeholder tag at the very start of
-the edit. The placeholder starts huge, settles near the centre, holds with a hand-drawn jitter and is
-gone by 1.0 s, as the boots step in; this keeps that slot exactly.
+A 1-second overlay (1920×1080, 30 fps) that replaces the placeholder tag at the very start of the
+edit, on its timing: the placeholder is there from the first frame, oversized and half transparent,
+zooms out slowly and then fast, lands at 0.40 s, holds with a hand-drawn jitter, fades from 0.87 s
+and is gone at 1.0 s, as the boots step in. The music comes in at 0.12 s.
+
+The export is an H.264 MP4 of the white logo on black, which plays and downloads anywhere; with the
+Screen blend mode it composites exactly like an alpha overlay (white over black is its own matte).
+--format prores writes ProRes 4444 with alpha instead.
 
 The logo (a raster PNG, white on transparent, the client's file; not in git) writes itself like a
 signature. Each stroke follows a centreline routed along the logo's own skeleton between hand-placed
 waypoints, and every pixel of the mark appears when the pen passes the nearest point of its stroke.
-Meanwhile the whole logo settles from close up (a zoom-out with a zoom blur, as the placeholder
-does), ENCORE98 comes in letter by letter, and on the way out it pushes towards the camera and
-fades.
+Meanwhile the whole logo zooms out from oversized on the placeholder's curve (with a zoom blur where
+it moves fast), ENCORE98 comes in letter by letter, and on the way out it pushes in and fades.
 
-    0.00–0.45  the stem, the loop and swash, the inner stroke, then the lasso flourish
-    0.30–0.55  E N C O R E 9 8, each letter rising into place
-    0.45–0.86  holds, with a slight stepped jitter (hand-drawn, like the placeholder)
-    0.86–0.99  pushes in and fades; nothing left at 1.0 s
+    0.00–0.37  the stem (already under way on frame 0), the loop and swash, the inner stroke, the lasso
+    0.00–0.40  zooms out from 2.8× and lands; from half to full opacity
+    0.38–0.60  E N C O R E 9 8, each letter rising into place
+    0.40–0.86  holds, with a slight stepped jitter (hand-drawn, like the placeholder)
+    0.87–0.97  pushes in and fades; nothing left at 1.0 s
 
-    python edits/encore_logo.py --logo LOGO.png --out renders/ENCORE98_logo_intro_1920x1080.mov
+    python edits/encore_logo.py --logo LOGO.png --out renders/ENCORE98_logo_intro_1920x1080.mp4
+    python edits/encore_logo.py --logo LOGO.png --format prores --out ....mov       # with alpha
     python edits/encore_logo.py --logo LOGO.png --debug work/encore/paths.png      # routed strokes
-    python edits/encore_logo.py --logo LOGO.png --preview REFERENCE.mov --out ...   # + in-context mp4
 """
 import argparse
 import subprocess
@@ -31,7 +36,7 @@ from PIL import Image
 from scipy import ndimage
 
 W, H, FPS, N = 1920, 1080, 30, 30
-CENTER = (0.5 * W, 0.48 * H)
+CENTER = (0.5 * W, 0.46 * H)
 REST_H = 0.50 * H                  # the logo's height (mark and name) at rest: the mark is about as tall as the
                                    # placeholder tag (~0.42 H); scaling down in the edit stays sharp
 TEXT_Y0 = 1335                     # rows of the PNG below this are the name
@@ -39,20 +44,26 @@ CROP = (560, 800, 1380, 1440)      # the logo's region of the 2000-px PNG (x0, y
 
 # the strokes, in writing order: waypoints along each (x, y in the PNG), and when the pen draws it
 STROKES = [
-    ("stem", [(973, 842), (913, 987), (827, 1107), (760, 1200), (716, 1290)], 0.00, 0.13),
+    ("stem", [(973, 842), (913, 987), (827, 1107), (760, 1200), (716, 1290)], -0.10, 0.06),
     ("loop", [(1060, 1000), (1100, 920), (1160, 850), (1182, 900), (1120, 990), (1010, 1060), (965, 1150),
-              (975, 1250), (1080, 1290), (1230, 1250), (1310, 1150), (1337, 1050)], 0.08, 0.34),
+              (975, 1250), (1080, 1290), (1230, 1250), (1310, 1150), (1337, 1050)], 0.00, 0.28),
     ("inner", [(873, 1107), (940, 1060), (1000, 1015), (1050, 1012), (1090, 1035), (1070, 1075), (1110, 1107)],
-     0.20, 0.30),
+     0.14, 0.25),
     ("lasso", [(1133, 1033), (1007, 1007), (873, 997), (740, 1013), (640, 1047), (597, 1073), (640, 1080),
-               (807, 1100), (940, 1120), (1040, 1123), (1110, 1107)], 0.24, 0.42),
+               (807, 1100), (940, 1120), (1040, 1123), (1110, 1107)], 0.18, 0.37),
 ]
 SOFT = 0.015                       # the pen's soft leading edge, seconds
+LAND = 0.40                        # where the zoom lands (the placeholder's frame 12)
 
 
 def smooth(x):
     x = np.clip(x, 0, 1)
     return x * x * (3 - 2 * x)
+
+
+def smoother(x):
+    x = np.clip(x, 0, 1)
+    return x * x * x * (x * (6 * x - 15) + 10)
 
 
 def expo_out(x):
@@ -113,7 +124,7 @@ def reveal_times(alpha, paths):
         D.append(d)
         T.append(r[idx[0], idx[1]])
     D, T = np.stack(D), np.stack(T)
-    ok = D <= D.min(0, keepdims=True) + 3.0
+    ok = D <= D.min(0, keepdims=True) + 7.0                  # crossings go to the first stroke through them
     T = np.where(ok, T, np.inf).min(0)
     T[D.min(0) > 30] = max(t1 for *_, t1 in STROKES)        # specks off every stroke: with the last one
     return T
@@ -160,14 +171,15 @@ class Logo:
         self.text_cx = (min(tx) + max(tx)) / 2
 
     def scale(self, t):
-        s = self.s_rest * (1 + 0.5 * (1 - expo_out(t / 0.45)))
-        return s * (1 + 0.2 * smooth(window(t, 0.86, 0.99)) ** 1.5)
+        """The placeholder's curve: 2.8× on frame 0, slow, then fast, landing at 0.40 s."""
+        s = self.s_rest * (1 + 1.8 * (1 - smoother(t / LAND)))
+        return s * (1 + 0.15 * smooth(window(t, 0.87, 0.97)) ** 1.5)
 
     def layer(self, t):
         """The logo at time t in its own (crop) space: alpha only — it is white."""
         a = self.mark_a * np.clip((t + SOFT - self.T) / SOFT, 0, 1)
         for i, (ly, lx, la) in enumerate(self.letters):
-            x = expo_out(window(t, 0.30 + 0.022 * i, 0.42 + 0.022 * i))
+            x = expo_out(window(t, 0.38 + 0.02 * i, 0.48 + 0.02 * i))
             if x <= 0:
                 continue
             cx = lx + la.shape[1] / 2
@@ -189,9 +201,9 @@ class Logo:
         """Frame n on the 1920×1080 canvas: straight alpha (the colour is white everywhere)."""
         t = n / FPS
         s = self.scale(t)
-        rot = np.deg2rad(-4.0 * (1 - expo_out(t / 0.45)))
+        rot = np.deg2rad(-6.0 * (1 - smoother(t / LAND)))
         jx = jy = jr = 0.0
-        hold = window(t, 0.45, 0.55) * (1 - window(t, 0.82, 0.86))
+        hold = window(t, LAND, LAND + 0.08) * (1 - window(t, 0.83, 0.87))
         if hold > 0:                                                              # stepped, 10 per second
             rng = np.random.default_rng(int(t * 10) + 7)
             jx, jy = rng.uniform(-1.5, 1.5, 2) * hold
@@ -204,7 +216,8 @@ class Logo:
         ratio = s / self.scale(max(t - 0.5 / FPS, 0))
         nb = int(np.clip(abs(np.log(ratio)) * 0.4 * W / 1.5, 1, 16))
         a = zoom_blur(a, cx, cy, ratio, nb)
-        a *= 1 - smooth(window(t, 0.86, 0.99))
+        a *= 0.55 + 0.45 * smooth(t / 0.33)                                       # half transparent while oversized
+        a *= 1 - smooth(window(t, 0.87, 0.97))
         return np.clip(a, 0, 1)
 
     def debug(self, path):
@@ -216,11 +229,14 @@ class Logo:
         Image.fromarray((np.clip(rgb, 0, 1) * 255).astype(np.uint8)).save(path)
 
 
-def write_frames(logo, folder):
+def write_frames(logo, folder, alpha):
     for n in range(N):
         a = logo.frame(n)
-        rgba = np.concatenate([np.ones((H, W, 3), np.float32), a[..., None]], -1)
-        Image.fromarray((rgba * 255 + 0.5).astype(np.uint8), "RGBA").save(Path(folder) / f"f{n:03d}.png")
+        if alpha:
+            img = Image.fromarray((np.dstack([np.ones((H, W, 3), np.float32), a]) * 255 + 0.5).astype(np.uint8), "RGBA")
+        else:
+            img = Image.fromarray((np.dstack([a] * 3) * 255 + 0.5).astype(np.uint8), "RGB")         # white on black
+        img.save(Path(folder) / f"f{n:03d}.png")
 
 
 def ffmpeg():
@@ -228,38 +244,22 @@ def ffmpeg():
     return os.environ.get("AFTERFILM_FFMPEG", "ffmpeg")
 
 
-def encode_prores(folder, out):
-    subprocess.run([ffmpeg(), "-v", "error", "-y", "-framerate", str(FPS), "-i", str(Path(folder) / "f%03d.png"),
-                    "-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16",
-                    "-vendor", "apl0", "-r", str(FPS), str(out)], check=True)
-
-
-def preview(logo, ref, out):
-    """The overlay in place: over a still of the garage from just before the boots (the reference's
-    frame at 0.967 s, where the placeholder has faded), then the reference itself from 1.0 s."""
-    import os
-    with tempfile.TemporaryDirectory() as d:
-        bg = Path(d) / "bg.png"
-        subprocess.run([ffmpeg(), "-v", "error", "-y", "-ss", "0.967", "-i", str(ref), "-frames:v", "1",
-                        "-vf", f"scale={W}:{H}", str(bg)], check=True)
-        base = np.asarray(Image.open(bg).convert("RGB")).astype(np.float32) / 255
-        for n in range(N):
-            a = logo.frame(n)[..., None]
-            Image.fromarray(((base * (1 - a) + a) * 255 + 0.5).astype(np.uint8)).save(Path(d) / f"p{n:03d}.png")
-        subprocess.run([ffmpeg(), "-v", "error", "-y", "-framerate", str(FPS), "-i", str(Path(d) / "p%03d.png"),
-                        "-ss", f"{N / FPS}", "-i", str(ref), "-i", str(ref),
-                        "-filter_complex", f"[1:v]scale={W}:{H},fps={FPS},format=yuv420p[r];[0:v]format=yuv420p[l];"
-                                           "[l][r]concat=n=2:v=1:a=0[v]",
-                        "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-crf", "18", "-preset", "slow",
-                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
-                        str(out)], check=True, env=os.environ)
+def encode(folder, out, fmt):
+    src = [ffmpeg(), "-v", "error", "-y", "-framerate", str(FPS), "-i", str(Path(folder) / "f%03d.png")]
+    if fmt == "prores":
+        args = ["-c:v", "prores_ks", "-profile:v", "4444", "-pix_fmt", "yuva444p10le", "-alpha_bits", "16",
+                "-vendor", "apl0"]
+    else:
+        args = ["-c:v", "libx264", "-profile:v", "high", "-crf", "10", "-preset", "slow", "-pix_fmt", "yuv420p",
+                "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-movflags", "+faststart"]
+    subprocess.run(src + args + ["-r", str(FPS), str(out)], check=True)
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--logo", required=True)
-    ap.add_argument("--out", default="renders/ENCORE98_logo_intro_1920x1080.mov")
-    ap.add_argument("--preview", help="the reference edit: also write <out>_preview.mp4")
+    ap.add_argument("--out", default="renders/ENCORE98_logo_intro_1920x1080.mp4")
+    ap.add_argument("--format", choices=["mp4", "prores"], default="mp4")
     ap.add_argument("--debug", help="write the routed strokes to this image and stop")
     ap.add_argument("--stills", nargs="*", type=int, help="write these frames as PNGs next to --out and stop")
     a = ap.parse_args()
@@ -274,7 +274,5 @@ if __name__ == "__main__":
             Image.fromarray((logo.frame(n) * 255).astype(np.uint8)).save(out.with_name(f"{out.stem}_{n:02d}.png"))
         raise SystemExit
     with tempfile.TemporaryDirectory() as d:
-        write_frames(logo, d)
-        encode_prores(d, out)
-    if a.preview:
-        preview(logo, a.preview, out.with_name(out.stem + "_preview.mp4"))
+        write_frames(logo, d, alpha=a.format == "prores")
+        encode(d, out, a.format)
