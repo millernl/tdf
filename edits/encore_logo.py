@@ -24,6 +24,7 @@ it moves fast), ENCORE98 comes in letter by letter, and on the way out it pushes
     python edits/encore_logo.py --logo LOGO.png --out renders/ENCORE98_logo_intro_1920x1080.mp4
     python edits/encore_logo.py --logo LOGO.png --format prores --out ....mov       # with alpha
     python edits/encore_logo.py --logo LOGO.png --debug work/encore/paths.png      # routed strokes
+    python edits/encore_logo.py --logo LOGO.png --preview REFERENCE.mov --out renders/..._preview.mp4
 """
 import argparse
 import subprocess
@@ -255,6 +256,66 @@ def encode(folder, out, fmt):
     subprocess.run(src + args + ["-r", str(FPS), str(out)], check=True)
 
 
+def clean_opening(frames):
+    """The reference's first second without its placeholder. The camera holds still, the tag only
+    ever adds white, and from frame 12 it is small, thin and jittering, so each background pixel is
+    uncovered in most of frames 12–29: their 30th percentile is the clean shot (frames 12–18 only on
+    the right, where the legs come in from frame 19). Frames 0–11, where the oversized tag covers
+    everything, are that clean shot; from frame 12 each frame keeps its own picture and only the
+    tag's pixels are patched, with grain to match. The legs on the right are never touched."""
+    h, w = frames[0].shape[:2]
+    xx = np.arange(w, dtype=np.float32)[None, :, None] / w
+    late = np.stack(frames[12:30])
+    yy = np.arange(h, dtype=np.float32)[:, None, None] / h
+    right = smooth((xx - 0.66) / 0.04)
+    bg = (np.percentile(late, 30, axis=0) * (1 - right) +
+          np.percentile(late[:7], 30, axis=0) * right).astype(np.float32)
+    # where the tag's strokes pile up (its top, right of the pillar) take the darkest frames
+    tag = (smooth((xx - 0.33) / 0.03) * (1 - smooth((xx - 0.68) / 0.02)) *
+           smooth((yy - 0.04) / 0.03) * (1 - smooth((yy - 0.92) / 0.03)))
+    dark = np.percentile(late, 4, axis=0).astype(np.float32)
+    dark = dark + (np.median(bg - dark))                                       # the minimum's bias back out
+    bg = bg * (1 - tag) + np.minimum(bg, dark) * tag
+    rng = np.random.default_rng(98)
+    resid = (late[:7] - bg).reshape(-1, 3)
+    sigma = np.median(np.abs(resid), axis=0) * 1.4826                     # the footage's grain, robustly
+    k = max(3, int(5 * w / 1280))
+    out = []
+    for n, f in enumerate(frames):
+        grain = cv2.GaussianBlur(rng.standard_normal((h, w, 3)).astype(np.float32), (0, 0), 0.7) * sigma * 1.5
+        if n < 12:
+            out.append(np.clip(bg + grain, 0, 1))
+            continue
+        m = ((f - bg).mean(-1) > 0.05) & (xx[..., 0] < 0.70)
+        m = cv2.dilate(m.astype(np.uint8), np.ones((2 * k + 1, 2 * k + 1), np.uint8)).astype(np.float32)
+        m = cv2.GaussianBlur(m, (0, 0), k / 2)[..., None]
+        out.append(np.clip(f * (1 - m) + (bg + grain) * m, 0, 1))
+    return out
+
+
+def preview(logo, ref, out):
+    """The logo in the real opening shot (cleaned of the placeholder, clean_opening), with the
+    reference carrying on from 1.0 s, with its own sound."""
+    import os
+    with tempfile.TemporaryDirectory() as d:
+        d = Path(d)
+        subprocess.run([ffmpeg(), "-v", "error", "-y", "-t", f"{N / FPS}", "-i", str(ref), "-pix_fmt", "rgb24",
+                        str(d / "r%03d.png")], check=True)
+        frames = [np.asarray(Image.open(f)).astype(np.float32) / 255 for f in sorted(d.glob("r*.png"))][:N]
+        for n, bg in enumerate(clean_opening(frames)):
+            bg = cv2.resize(bg, (W, H), interpolation=cv2.INTER_LANCZOS4)
+            a = logo.frame(n)[..., None]
+            img = bg + a * (1 - bg)                                               # Screen = white over, with alpha a
+            Image.fromarray((np.clip(img, 0, 1) * 255 + 0.5).astype(np.uint8)).save(d / f"p{n:03d}.png")
+        subprocess.run([ffmpeg(), "-v", "error", "-y", "-framerate", str(FPS), "-i", str(d / "p%03d.png"),
+                        "-ss", f"{N / FPS}", "-i", str(ref), "-i", str(ref),
+                        "-filter_complex", f"[1:v]scale={W}:{H}:flags=lanczos,fps={FPS},format=yuv420p,setsar=1[r];"
+                                           "[0:v]format=yuv420p,setsar=1[l];[l][r]concat=n=2:v=1:a=0[v]",
+                        "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-crf", "18", "-preset", "slow",
+                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
+                        str(out)], check=True, env=os.environ)
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--logo", required=True)
@@ -262,6 +323,7 @@ if __name__ == "__main__":
     ap.add_argument("--format", choices=["mp4", "prores"], default="mp4")
     ap.add_argument("--debug", help="write the routed strokes to this image and stop")
     ap.add_argument("--stills", nargs="*", type=int, help="write these frames as PNGs next to --out and stop")
+    ap.add_argument("--preview", help="the reference edit: write the logo in its opening shot to --out and stop")
     a = ap.parse_args()
     logo = Logo(a.logo)
     if a.debug:
@@ -269,6 +331,9 @@ if __name__ == "__main__":
         raise SystemExit
     out = Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
+    if a.preview:
+        preview(logo, a.preview, out)
+        raise SystemExit
     if a.stills:
         for n in a.stills:
             Image.fromarray((logo.frame(n) * 255).astype(np.uint8)).save(out.with_name(f"{out.stem}_{n:02d}.png"))
